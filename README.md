@@ -46,7 +46,7 @@ https://github.com/user-attachments/assets/79137c69-5d3f-4270-9164-e509f88c3535
 | 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline | |
 | 🗓 | **ruz.spbstu.ru**, the public timetable | weekly timetable of any group or teacher | |
 | 🧭 | **Everything at once** | `study_overview`: dl deadlines, openedu.ru progress and unread mail in one call | |
-| 🚧 | **my.spbstu.ru** | study plan, record book: in progress | |
+| 🏛 | **my.spbstu.ru**, «Мой Политех» | record book grades with semester averages, study plan, this year's work plan | |
 
 ## Quick start
 
@@ -188,6 +188,18 @@ Then just ask: *"What's going on with my studies?"*
 </details>
 
 <details>
+<summary><b>my.spbstu.ru</b>: 4 tools</summary>
+
+| Tool | Description |
+|---|---|
+| `my_grades` | Record book (зачётка): every grade with control type, date and lecturer; average of each semester. |
+| `my_study_plan` | The programme's study plan: disciplines, semesters, hours, control type. |
+| `my_work_plan` | This year's work plan by semester: lecture, practice, lab and self-study hours. |
+| `my_record_books` | Record books, one per programme, with the group. |
+
+</details>
+
+<details>
 <summary><b>Timetable</b>: 1 tool</summary>
 
 | Tool | Description |
@@ -227,6 +239,7 @@ flowchart LR
 - **dl.spbstu.ru**: signs in through the university SSO and obtains a Moodle mobile web service token, the same way the official Moodle app does.
 - **openedu.ru**: signs in through the «Политех» identity provider of the openedu.ru SSO, then reads the Open edX course APIs.
 - **Mail**: Exchange Web Services with the same account.
+- **my.spbstu.ru**: its own sign-in form, then the JSON endpoints its pages use.
 - **Sessions** (the Moodle token and cookies) are kept between runs, so the server signs in again only when a session has expired. University sites lock accounts after frequent sign-ins.
 
 ## Security and privacy

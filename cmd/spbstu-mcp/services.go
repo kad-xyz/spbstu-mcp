@@ -6,6 +6,7 @@ import (
 	"github.com/kad-xyz/spbstu-mcp/internal/demo"
 	"github.com/kad-xyz/spbstu-mcp/internal/ews"
 	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
+	"github.com/kad-xyz/spbstu-mcp/internal/mypoly"
 	"github.com/kad-xyz/spbstu-mcp/internal/openedu"
 )
 
@@ -42,7 +43,16 @@ type openeduService interface {
 	Outline(ctx context.Context, courseID string) ([]openedu.Chapter, error)
 }
 
+type myService interface {
+	RecordBooks(ctx context.Context) ([]mypoly.RecordBook, error)
+	Grades(ctx context.Context, recordBook string, semester int) (*mypoly.Grades, error)
+	StudyPlan(ctx context.Context, recordBook string, semester int) ([]mypoly.Discipline, error)
+	WorkPlan(ctx context.Context, recordBook string, semester int) (map[string][]mypoly.Discipline, error)
+}
+
 var (
+	_ myService      = (*mypoly.Client)(nil)
+	_ myService      = demo.My{}
 	_ dlService      = (*moodle.Client)(nil)
 	_ mailService    = (*ews.Client)(nil)
 	_ openeduService = (*openedu.Client)(nil)

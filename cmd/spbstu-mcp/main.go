@@ -15,6 +15,7 @@ import (
 	"github.com/kad-xyz/spbstu-mcp/internal/demo"
 	"github.com/kad-xyz/spbstu-mcp/internal/ews"
 	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
+	"github.com/kad-xyz/spbstu-mcp/internal/mypoly"
 	"github.com/kad-xyz/spbstu-mcp/internal/openedu"
 	"github.com/kad-xyz/spbstu-mcp/internal/state"
 )
@@ -37,15 +38,16 @@ func main() {
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id from dl_course_contents, not its cmid. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
-			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline). schedule reads the public timetable.",
+			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline). schedule reads the public timetable. my_* tools read my.spbstu.ru: grades (record book), study and work plans.",
 	})
 	var (
 		dlSvc   dlService      = dl
 		oeSvc   openeduService = &openedu.Client{KeychainService: *service, State: store}
 		mailSvc mailService    = &ews.Client{KeychainService: *service}
+		mySvc   myService      = &mypoly.Client{KeychainService: *service, State: store}
 	)
 	if *demoMode {
-		dlSvc, oeSvc, mailSvc = demo.DL{}, demo.OpenEdu{}, demo.Mail{}
+		dlSvc, oeSvc, mailSvc, mySvc = demo.DL{}, demo.OpenEdu{}, demo.Mail{}, demo.My{}
 	}
 	registerDL(server, dlSvc, *downloads)
 	registerDLWrite(server, dlSvc)
@@ -53,6 +55,7 @@ func main() {
 	registerOpenEdu(server, oeSvc)
 	registerOverview(server, dlSvc, oeSvc, mailSvc)
 	registerSchedule(server, *group)
+	registerMy(server, mySvc)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
