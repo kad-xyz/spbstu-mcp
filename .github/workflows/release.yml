@@ -37,3 +37,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes
+      - name: Update Homebrew tap
+        env:
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
+        run: |
+          [ -n "$TAP_DEPLOY_KEY" ] || { echo "no TAP_DEPLOY_KEY, skipping"; exit 0; }
+          mkdir -p ~/.ssh && printf '%s\n' "$TAP_DEPLOY_KEY" > ~/.ssh/tap && chmod 600 ~/.ssh/tap
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/tap -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          git clone -q git@github.com:kad-xyz/homebrew-tap.git tap
+          scripts/formula.sh "$GITHUB_REF_NAME" dist/checksums.txt > tap/Formula/spbstu-mcp.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -qam "feat: spbstu-mcp ${GITHUB_REF_NAME#v}" && git push -q

@@ -50,7 +50,13 @@ cmdkey /generic:spbstu /user:ЛОГИН@edu.spbstu.ru /pass
 
 ### 2. Сервер
 
-Готовый бинарник — со страницы [Releases](../../releases) для своей системы (`darwin_arm64` — Apple Silicon, `darwin_amd64` — Intel Mac, `linux_*`, `windows_*`). На macOS:
+Через [Homebrew](https://brew.sh) (macOS, Linux):
+
+```sh
+brew install kad-xyz/tap/spbstu-mcp
+```
+
+Или вручную. Готовый бинарник — со страницы [Releases](../../releases) для своей системы (`darwin_arm64` — Apple Silicon, `darwin_amd64` — Intel Mac, `linux_*`, `windows_*`). На macOS:
 
 ```sh
 tar -xzf spbstu-mcp_*_darwin_arm64.tar.gz
@@ -65,7 +71,7 @@ mkdir -p ~/.local/bin && mv spbstu-mcp ~/.local/bin/
 Claude Code:
 
 ```sh
-claude mcp add spbstu -s user -- ~/.local/bin/spbstu-mcp
+claude mcp add spbstu -s user -- "$(command -v spbstu-mcp)"
 ```
 
 Claude Desktop — в `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`):

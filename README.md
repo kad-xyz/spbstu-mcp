@@ -86,7 +86,13 @@ cmdkey /generic:spbstu /user:LOGIN@edu.spbstu.ru /pass
 
 The password is asked with hidden input in every case.
 
-**2. Install the server.** Download the archive for your system from [Releases](https://github.com/kad-xyz/spbstu-mcp/releases/latest)
+**2. Install the server.** With [Homebrew](https://brew.sh) (macOS, Linux):
+
+```sh
+brew install kad-xyz/tap/spbstu-mcp
+```
+
+Or download the archive for your system from [Releases](https://github.com/kad-xyz/spbstu-mcp/releases/latest)
 and put `spbstu-mcp` somewhere on disk, e.g. `~/.local/bin`. On macOS, clear the download quarantine (the binary is not
 notarized):
 
@@ -110,7 +116,7 @@ go install github.com/kad-xyz/spbstu-mcp/cmd/spbstu-mcp@latest
 <tr><td>
 
 ```sh
-claude mcp add spbstu -s user -- ~/.local/bin/spbstu-mcp
+claude mcp add spbstu -s user -- "$(command -v spbstu-mcp)"
 ```
 
 </td><td>
