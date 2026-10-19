@@ -1,27 +1,88 @@
 # spbstu-mcp
 
-MCP server for the SPbPU student services. `study_overview` sums up the semester in one call: dl deadlines, openedu.ru progress and unread mail.
+MCP-сервер для студентов СПбПУ (Политеха): даёт Claude (и любому другому MCP-клиенту) доступ к твоей учёбе.
 
-- **dl.spbstu.ru** (Moodle): courses, course contents, assignments, deadlines, submission status, grades, forums, pages, file downloads; submitting work to assignments and posting to forums with attachments.
-- **mail.spbstu.ru** (Exchange Web Services): list and search mail, read messages, save attachments, write new messages and replies. `mail_send` only saves a draft unless `send` is true.
-- **openedu.ru** (Открытое образование, Open edX): courses, progress and grades, due dates, course outline. Signs in through the SPbPU option of the openedu.ru SSO.
-- **my.spbstu.ru**: in progress.
+| Сервис | Что умеет |
+|---|---|
+| **dl.spbstu.ru** (Moodle) | курсы, содержимое курса, задания с полным текстом, дедлайны, статус сдачи и оценка, оценки по курсу, форумы, страницы, скачивание файлов; **сдача работ** и посты в форумы с вложениями |
+| **mail.spbstu.ru** (почта) | список и поиск писем, чтение, сохранение вложений, новые письма и ответы |
+| **openedu.ru** (Открытое образование) | курсы, прогресс и оценки, сроки, оглавление курса |
+| **my.spbstu.ru** | в разработке |
 
-## Credentials
+`study_overview` одним вызовом собирает сводку по семестру: дедлайны dl, прогресс на openedu.ru и непрочитанную почту.
 
-The server signs in through the SPbPU single sign-on with a login stored in the macOS keychain as a generic password item:
+Неофициальный проект, к СПбПУ отношения не имеет.
+
+## Установка
+
+Нужен macOS: логин и пароль хранятся в связке ключей.
+
+### 1. Логин и пароль ЕУЗ — в связку ключей
+
+В приложении «Терминал»:
 
 ```sh
-security add-generic-password -s spbstu -a <login>@edu.spbstu.ru -T /usr/bin/security -w
+security add-generic-password -s spbstu -a ЛОГИН@edu.spbstu.ru -T /usr/bin/security -w
 ```
 
-`-w` must come last, so that `security` prompts for the password. The SSO and my.spbstu.ru take the login without its domain; Exchange takes the full address. Sessions (the Moodle mobile token, openedu.ru and my.spbstu.ru cookies) are kept in `~/.config/spbstu-mcp/state.json` (mode 0600), so the server signs in again only when a session expires.
-
-## Build and run
+`ЛОГИН` — логин единой учётной записи (как в почте `ЛОГИН@edu.spbstu.ru`). `-w` должен стоять **последним** — тогда `security` спросит пароль со скрытым вводом. Проверить, что пароль записался (выводит только длину):
 
 ```sh
-go build -o bin/spbstu-mcp ./cmd/spbstu-mcp
-claude mcp add spbstu -s user -- "$PWD/bin/spbstu-mcp"
+security find-generic-password -s spbstu -w | tr -d '\n' | wc -c
 ```
 
-Flags: `-keychain-service` (default `spbstu`), `-downloads` (default `~/Downloads/spbstu`).
+Пароль никуда, кроме серверов СПбПУ и openedu.ru, не уходит и в ответах модели не появляется.
+
+### 2. Сервер
+
+Готовый бинарник — со страницы [Releases](../../releases) (`darwin_arm64` для Apple Silicon, `darwin_amd64` для Intel):
+
+```sh
+tar -xzf spbstu-mcp_*_darwin_arm64.tar.gz
+xattr -d com.apple.quarantine spbstu-mcp   # бинарник не подписан
+mkdir -p ~/.local/bin && mv spbstu-mcp ~/.local/bin/
+```
+
+Или собрать из исходников (Go 1.26+): `go build -o ~/.local/bin/spbstu-mcp ./cmd/spbstu-mcp`.
+
+### 3. Подключить к Claude
+
+Claude Code:
+
+```sh
+claude mcp add spbstu -s user -- ~/.local/bin/spbstu-mcp
+```
+
+Claude Desktop — в `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{ "mcpServers": { "spbstu": { "command": "/Users/ИМЯ/.local/bin/spbstu-mcp" } } }
+```
+
+Дальше просто спрашивай: «что у меня горит по учёбе», «разбери задание по базам данных», «какие письма пришли от преподавателей».
+
+## Как это работает
+
+- **dl.spbstu.ru** — вход через ЕУЗ (cas.spbstu.ru), затем токен мобильного API Moodle, как у приложения Moodle.
+- **openedu.ru** — вход через «Политех» в SSO Открытого образования, данные из API Open edX.
+- **Почта** — Exchange Web Services с логином и паролем ЕУЗ.
+- Сессии хранятся в `~/.config/spbstu-mcp/state.json` (доступ только у тебя), поэтому сервер входит заново, только когда сессия истекла: частые входы сайты Политеха блокируют.
+
+## Безопасность
+
+- Всё, что что-то отправляет (`dl_submit_assignment`, `dl_forum_*`, `mail_send`), по описанию инструмента выполняется только после явного подтверждения пользователя; `mail_send` по умолчанию лишь сохраняет черновик.
+- Оцениваемые тесты и экзамены сервер проходить не умеет и не будет.
+
+## Параметры
+
+| Флаг | По умолчанию | |
+|---|---|---|
+| `-keychain-service` | `spbstu` | имя записи в связке ключей |
+| `-downloads` | `~/Downloads/spbstu` | куда сохраняются файлы |
+
+## Разработка
+
+```sh
+go test ./...                     # офлайн-тесты
+SPBSTU_LIVE=1 go test ./...       # плюс проверки на настоящих сервисах (нужна запись в связке ключей)
+```

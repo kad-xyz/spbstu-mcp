@@ -15,6 +15,7 @@ var (
 	tagRe   = regexp.MustCompile(`(?s)<(script|style)[^>]*>.*?</(script|style)>|<[^>]+>`)
 	spaceRe = regexp.MustCompile(`[ \t\r\f\v]+`)
 	blankRe = regexp.MustCompile(`\n\s*\n+`)
+	edgeRe  = regexp.MustCompile(` *\n *`)
 	breakRe = regexp.MustCompile(`(?i)<br\s*/?>|</(p|div|li|h[1-6]|tr)>`)
 )
 
@@ -22,7 +23,8 @@ var (
 func Text(s string) string {
 	s = breakRe.ReplaceAllString(s, "\n")
 	s = html.UnescapeString(tagRe.ReplaceAllString(s, " "))
-	s = spaceRe.ReplaceAllString(s, " ")
+	s = spaceRe.ReplaceAllString(strings.ReplaceAll(s, "\u00a0", " "), " ")
+	s = edgeRe.ReplaceAllString(s, "\n")
 	return strings.TrimSpace(blankRe.ReplaceAllString(s, "\n"))
 }
 

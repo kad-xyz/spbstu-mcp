@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - name: Build
+        run: |
+          mkdir dist
+          for arch in arm64 amd64; do
+            GOOS=darwin GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" \
+              -o "dist/spbstu-mcp" ./cmd/spbstu-mcp
+            tar -C dist -czf "dist/spbstu-mcp_${GITHUB_REF_NAME}_darwin_${arch}.tar.gz" spbstu-mcp
+            rm dist/spbstu-mcp
+          done
+          (cd dist && shasum -a 256 *.tar.gz > checksums.txt)
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes
