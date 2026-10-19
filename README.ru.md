@@ -101,6 +101,7 @@ Claude Desktop — в `claude_desktop_config.json` (macOS: `~/Library/Applicatio
 | `-keychain-service` | `spbstu` | имя записи в хранилище учётных данных |
 | `-downloads` | `~/Downloads/spbstu` | куда сохраняются файлы |
 | `-group` | | группа по умолчанию для `schedule`, например `5130902/30201` |
+| `-demo` | `false` | выдуманные данные вместо сервисов Политеха, учётка не нужна — попробовать сервер или записать демо |
 
 ## Разработка
 

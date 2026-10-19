@@ -5,8 +5,6 @@ import (
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
 )
 
 const confirmFirst = " Act ONLY after showing the user exactly what will be sent where and getting their explicit confirmation."
@@ -32,7 +30,7 @@ type replyIn struct {
 	Files   []string `json:"files,omitempty" jsonschema:"absolute paths of local files to attach"`
 }
 
-func registerDLWrite(s *mcp.Server, dl *moodle.Client) {
+func registerDLWrite(s *mcp.Server, dl dlService) {
 	write := &mcp.ToolAnnotations{DestructiveHint: ptr(true), OpenWorldHint: ptr(true)}
 
 	mcp.AddTool(s, &mcp.Tool{Name: "dl_submit_assignment", Annotations: write,

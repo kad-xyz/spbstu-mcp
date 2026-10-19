@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
 )
 
 type coursesIn struct {
@@ -42,7 +40,7 @@ type downloadIn struct {
 	URL string `json:"url" jsonschema:"file url from dl_course_contents, dl_assignments or a forum post"`
 }
 
-func registerDL(s *mcp.Server, dl *moodle.Client, downloads string) {
+func registerDL(s *mcp.Server, dl dlService, downloads string) {
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 
 	mcp.AddTool(s, &mcp.Tool{Name: "dl_courses", Annotations: readOnly,

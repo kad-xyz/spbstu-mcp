@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"github.com/kad-xyz/spbstu-mcp/internal/openedu"
 )
 
 type oeCoursesIn struct {
@@ -16,7 +14,7 @@ type oeCourseIn struct {
 	CourseID string `json:"course_id" jsonschema:"course id from openedu_courses, e.g. course-v1:spbstu+DATAM+fall_2026_spring_2027"`
 }
 
-func registerOpenEdu(s *mcp.Server, oe *openedu.Client) {
+func registerOpenEdu(s *mcp.Server, oe openeduService) {
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 
 	mcp.AddTool(s, &mcp.Tool{Name: "openedu_courses", Annotations: readOnly,

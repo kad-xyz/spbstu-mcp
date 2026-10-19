@@ -136,6 +136,10 @@ claude mcp add spbstu -s user -- "$(command -v spbstu-mcp)"
 
 Then just ask: *"What's going on with my studies?"*
 
+> [!TIP]
+> **No account at hand?** Start the server with `-demo` (`claude mcp add spbstu-demo -- spbstu-mcp -demo`): it serves a
+> made-up student's courses, deadlines and mail, touches no university service and needs no credentials.
+
 ## Tools
 
 <details open>
@@ -240,6 +244,7 @@ flowchart LR
 | `-keychain-service` | `spbstu` | Name of the credential store item with the university login. |
 | `-downloads` | `~/Downloads/spbstu` | Where downloaded files and attachments are saved. |
 | `-group` | | Default group for `schedule`, e.g. `5130902/30201`. |
+| `-demo` | `false` | Serve made-up data instead of the university services; no credentials needed. |
 
 ## Troubleshooting
 

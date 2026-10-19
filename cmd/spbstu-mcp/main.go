@@ -12,6 +12,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/kad-xyz/spbstu-mcp/internal/demo"
 	"github.com/kad-xyz/spbstu-mcp/internal/ews"
 	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
 	"github.com/kad-xyz/spbstu-mcp/internal/openedu"
@@ -23,6 +24,7 @@ var version = "dev"
 func main() {
 	service := flag.String("keychain-service", "spbstu", "generic password item holding the SPbPU login")
 	home, _ := os.UserHomeDir()
+	demoMode := flag.Bool("demo", false, "serve made-up data instead of the university services (no account needed)")
 	group := flag.String("group", "", "default group for the schedule tool, e.g. 5130902/30201")
 	downloads := flag.String("downloads", filepath.Join(home, "Downloads", "spbstu"), "where dl_download saves files")
 	flag.Parse()
@@ -37,13 +39,19 @@ func main() {
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
 			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline). schedule reads the public timetable.",
 	})
-	oe := &openedu.Client{KeychainService: *service, State: store}
-	mail := &ews.Client{KeychainService: *service}
-	registerDL(server, dl, *downloads)
-	registerDLWrite(server, dl)
-	registerMail(server, mail, *downloads)
-	registerOpenEdu(server, oe)
-	registerOverview(server, dl, oe, mail)
+	var (
+		dlSvc   dlService      = dl
+		oeSvc   openeduService = &openedu.Client{KeychainService: *service, State: store}
+		mailSvc mailService    = &ews.Client{KeychainService: *service}
+	)
+	if *demoMode {
+		dlSvc, oeSvc, mailSvc = demo.DL{}, demo.OpenEdu{}, demo.Mail{}
+	}
+	registerDL(server, dlSvc, *downloads)
+	registerDLWrite(server, dlSvc)
+	registerMail(server, mailSvc, *downloads)
+	registerOpenEdu(server, oeSvc)
+	registerOverview(server, dlSvc, oeSvc, mailSvc)
 	registerSchedule(server, *group)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

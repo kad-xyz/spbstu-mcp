@@ -8,7 +8,6 @@ import (
 
 	"github.com/kad-xyz/spbstu-mcp/internal/ews"
 	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
-	"github.com/kad-xyz/spbstu-mcp/internal/openedu"
 )
 
 type overviewIn struct {
@@ -31,7 +30,7 @@ type overview struct {
 	Errors    map[string]string `json:"errors,omitempty"`
 }
 
-func registerOverview(s *mcp.Server, dl *moodle.Client, oe *openedu.Client, mail *ews.Client) {
+func registerOverview(s *mcp.Server, dl dlService, oe openeduService, mail mailService) {
 	mcp.AddTool(s, &mcp.Tool{Name: "study_overview", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
 		Description: "One-call summary of the semester: dl.spbstu.ru deadlines (with recently overdue ones), progress " +
 			"in current openedu.ru courses and unread university mail. Each source that fails is reported in errors."},

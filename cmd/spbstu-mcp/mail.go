@@ -40,7 +40,7 @@ type mailSendIn struct {
 	Send      bool     `json:"send,omitempty" jsonschema:"true sends the message; false (default) only saves it in Drafts"`
 }
 
-func registerMail(s *mcp.Server, mail *ews.Client, downloads string) {
+func registerMail(s *mcp.Server, mail mailService, downloads string) {
 	registerMailDelete(s, mail)
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 
@@ -107,7 +107,7 @@ func registerMail(s *mcp.Server, mail *ews.Client, downloads string) {
 
 func ptr[T any](v T) *T { return &v }
 
-func registerMailDelete(s *mcp.Server, mail *ews.Client) {
+func registerMailDelete(s *mcp.Server, mail mailService) {
 	mcp.AddTool(s, &mcp.Tool{Name: "mail_delete",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true)},
 		Description: "Move a message (or a draft) to Deleted Items; it can be restored from there. Only after the user's confirmation."},
