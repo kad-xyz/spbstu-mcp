@@ -375,6 +375,7 @@ func (c *Client) Discussions(ctx context.Context, forumID int) ([]Discussion, er
 }
 
 type Post struct {
+	ID      int    `json:"post_id"`
 	Author  string `json:"author"`
 	Created string `json:"created"`
 	Subject string `json:"subject"`
@@ -386,6 +387,7 @@ type Post struct {
 func (c *Client) Posts(ctx context.Context, discussionID int) ([]Post, error) {
 	var raw struct {
 		Posts []struct {
+			ID          int    `json:"id"`
 			Subject     string `json:"subject"`
 			Message     string `json:"message"`
 			TimeCreated int64  `json:"timecreated"`
@@ -405,7 +407,7 @@ func (c *Client) Posts(ctx context.Context, discussionID int) ([]Post, error) {
 	}
 	out := make([]Post, 0, len(raw.Posts))
 	for _, p := range raw.Posts {
-		post := Post{Author: p.Author.FullName, Created: date(p.TimeCreated), Subject: p.Subject, Message: Text(p.Message)}
+		post := Post{ID: p.ID, Author: p.Author.FullName, Created: date(p.TimeCreated), Subject: p.Subject, Message: Text(p.Message)}
 		for _, a := range p.Attachments {
 			post.Files = append(post.Files, File{Name: a.FileName, URL: a.URL, Size: a.FileSize})
 		}

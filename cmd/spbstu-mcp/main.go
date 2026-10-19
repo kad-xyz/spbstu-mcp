@@ -35,6 +35,7 @@ func main() {
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation.",
 	})
 	registerDL(server, dl, *downloads)
+	registerDLWrite(server, dl)
 	registerMail(server, &ews.Client{KeychainService: *service}, *downloads)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {

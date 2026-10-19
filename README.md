@@ -2,7 +2,7 @@
 
 MCP server for the SPbPU student services:
 
-- **dl.spbstu.ru** (Moodle): courses, course contents, assignments, deadlines, submission status, grades, forums, pages, file downloads.
+- **dl.spbstu.ru** (Moodle): courses, course contents, assignments, deadlines, submission status, grades, forums, pages, file downloads; submitting work to assignments and posting to forums with attachments.
 - **mail.spbstu.ru** (Exchange Web Services): list and search mail, read messages, save attachments, write new messages and replies. `mail_send` only saves a draft unless `send` is true.
 - **my.spbstu.ru**: in progress.
 
