@@ -1,0 +1,140 @@
+// Package mypoly reads the student's own pages on my.spbstu.ru ("Мой Политех").
+package mypoly
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"regexp"
+	"strings"
+	"sync"
+
+	"github.com/kad-xyz/spbstu-mcp/internal/keychain"
+	"github.com/kad-xyz/spbstu-mcp/internal/state"
+)
+
+const (
+	BaseURL   = "https://my.spbstu.ru"
+	loginURL  = BaseURL + "/accounts/basic-login/"
+	cookieKey = "my.cookies"
+)
+
+var baseURL, _ = url.Parse(BaseURL)
+
+var csrfRe = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`)
+
+// Client keeps a my.spbstu.ru session and signs in with the keychain credentials whenever
+// a page redirects to the login form.
+type Client struct {
+	KeychainService string
+	// State keeps the session cookies between runs; nil keeps them in memory only.
+	State *state.Store
+
+	mu     sync.Mutex
+	client *http.Client
+}
+
+// Get returns the body of a page under BaseURL, signing in first when needed.
+func (c *Client) Get(ctx context.Context, path string) ([]byte, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.client == nil {
+		jar, _ := cookiejar.New(nil)
+		if c.State != nil {
+			if saved, err := http.ParseCookie(c.State.Get(cookieKey)); err == nil {
+				jar.SetCookies(baseURL, saved)
+			}
+		}
+		c.client = &http.Client{Jar: jar}
+	}
+	body, loggedOut, err := c.get(ctx, path)
+	if err != nil || !loggedOut {
+		return body, err
+	}
+	if err := c.signIn(ctx); err != nil {
+		return nil, err
+	}
+	body, loggedOut, err = c.get(ctx, path)
+	if err == nil && loggedOut {
+		err = errors.New("my.spbstu.ru: still on the login page after signing in")
+	}
+	return body, err
+}
+
+func (c *Client) get(ctx context.Context, path string) ([]byte, bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, BaseURL+path, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, false, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, err
+	}
+	if strings.HasPrefix(resp.Request.URL.Path, "/accounts/") {
+		return nil, true, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, false, fmt.Errorf("my.spbstu.ru%s: HTTP %d", path, resp.StatusCode)
+	}
+	return body, false, nil
+}
+
+func (c *Client) signIn(ctx context.Context) error {
+	creds, err := keychain.Load(c.KeychainService)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, loginURL, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	page, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return err
+	}
+	m := csrfRe.FindSubmatch(page)
+	if m == nil {
+		return errors.New("my.spbstu.ru: login form not found")
+	}
+	form := url.Values{
+		"csrfmiddlewaretoken": {string(m[1])},
+		"username":            {creds.Login()},
+		"password":            {creds.Password},
+	}
+	req, err = http.NewRequestWithContext(ctx, http.MethodPost, loginURL, strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", loginURL)
+	resp, err = c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if strings.HasPrefix(resp.Request.URL.Path, "/accounts/") {
+		return errors.New("my.spbstu.ru rejected the credentials (or locked the account after too many sign-ins; wait before retrying)")
+	}
+	if c.State != nil {
+		var pairs []string
+		for _, ck := range c.client.Jar.Cookies(baseURL) {
+			pairs = append(pairs, ck.Name+"="+ck.Value)
+		}
+		_ = c.State.Set(cookieKey, strings.Join(pairs, "; "))
+	}
+	return nil
+}
