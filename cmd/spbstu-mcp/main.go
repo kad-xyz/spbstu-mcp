@@ -12,6 +12,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/kad-xyz/spbstu-mcp/internal/ews"
 	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
 	"github.com/kad-xyz/spbstu-mcp/internal/state"
 )
@@ -30,9 +31,11 @@ func main() {
 	server := mcp.NewServer(&mcp.Implementation{Name: "spbstu-mcp", Version: version}, &mcp.ServerOptions{
 		Instructions: "SPbPU (Политех) student services of the user. dl_* tools read the dl.spbstu.ru Moodle: " +
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
-			"forum's instance_id from dl_course_contents, not its cmid.",
+			"forum's instance_id from dl_course_contents, not its cmid. mail_* tools work with the university " +
+			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation.",
 	})
 	registerDL(server, dl, *downloads)
+	registerMail(server, &ews.Client{KeychainService: *service}, *downloads)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
