@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/79137c69-5d3f-4270-9164-e509f88c3535
+
 <div align="center">
 
 # spbstu-mcp
