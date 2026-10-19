@@ -35,7 +35,7 @@ jobs:
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q gnome-keyring libsecret-tools dbus-x11
           dbus-run-session -- sh -c '
-            echo -n "" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
+            echo -n "ci-keyring" | gnome-keyring-daemon --unlock --components=secrets >/dev/null
             printf "Пароль-123" | secret-tool store --label=spbstu-mcp-test service spbstu-mcp-test account ivanov.ii@edu.spbstu.ru
             STORE_TEST=1 go test ./internal/keychain -run TestStoreRoundTrip -v'
       - name: Credential store (Windows)
