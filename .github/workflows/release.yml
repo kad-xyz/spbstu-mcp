@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7
@@ -19,13 +19,20 @@ jobs:
       - name: Build
         run: |
           mkdir dist
-          for arch in arm64 amd64; do
-            GOOS=darwin GOARCH=$arch go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" \
-              -o "dist/spbstu-mcp" ./cmd/spbstu-mcp
-            tar -C dist -czf "dist/spbstu-mcp_${GITHUB_REF_NAME}_darwin_${arch}.tar.gz" spbstu-mcp
-            rm dist/spbstu-mcp
+          for target in darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            os=${target%/*} arch=${target#*/} bin=spbstu-mcp
+            [ "$os" = windows ] && bin=spbstu-mcp.exe
+            GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" \
+              -o "dist/$bin" ./cmd/spbstu-mcp
+            name="spbstu-mcp_${GITHUB_REF_NAME}_${os}_${arch}"
+            if [ "$os" = windows ]; then
+              (cd dist && zip -q "$name.zip" "$bin")
+            else
+              tar -C dist -czf "dist/$name.tar.gz" "$bin"
+            fi
+            rm "dist/$bin"
           done
-          (cd dist && shasum -a 256 *.tar.gz > checksums.txt)
+          (cd dist && sha256sum *.tar.gz *.zip > checksums.txt)
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}

@@ -5,12 +5,13 @@
 **Your Peter the Great St. Petersburg Polytechnic University (SPbPU) studies, available to Claude.**
 
 An [MCP](https://modelcontextprotocol.io) server for SPbPU student services: the dl.spbstu.ru Moodle,
-the university mailbox and openedu.ru. You sign in with your university account; your password stays in the macOS keychain.
+the university mailbox, openedu.ru and the timetable. You sign in with your university account; your password stays in your
+operating system's credential store.
 
 [![CI](https://github.com/kad-xyz/spbstu-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kad-xyz/spbstu-mcp/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/kad-xyz/spbstu-mcp?sort=semver)](https://github.com/kad-xyz/spbstu-mcp/releases/latest)
 [![Go](https://img.shields.io/github/go-mod/go-version/kad-xyz/spbstu-mcp)](go.mod)
-![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)
+![Platforms](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 **English** · [Русский](README.ru.md)
@@ -47,29 +48,50 @@ the university mailbox and openedu.ru. You sign in with your university account;
 
 ## Quick start
 
-> [!NOTE]
-> macOS only: credentials are read from the macOS keychain.
+**1. Store your university login** in the operating system's credential store. `LOGIN` is your single university
+account, the one in `LOGIN@edu.spbstu.ru`.
 
-**1. Store your university login in the keychain.** In Terminal:
+<details open>
+<summary><b>macOS</b>: keychain</summary>
 
 ```sh
 security add-generic-password -s spbstu -a LOGIN@edu.spbstu.ru -T /usr/bin/security -w
 ```
 
-`LOGIN` is your single university account (the one in `LOGIN@edu.spbstu.ru`).
-
 > [!IMPORTANT]
-> Keep `-w` **last**, so that `security` prompts for the password with hidden input. Anything after `-w` would be
-> stored as the password itself. To check what was stored (prints only the length):
-> `security find-generic-password -s spbstu -w | tr -d '\n' | wc -c`
+> Keep `-w` **last**, so that `security` prompts for the password with hidden input; anything after `-w` would be
+> stored as the password itself. To check (prints only the length): `security find-generic-password -s spbstu -w | wc -c`
 
-**2. Install the server.** Download the archive for your Mac from [Releases](https://github.com/kad-xyz/spbstu-mcp/releases/latest)
-(`darwin_arm64` for Apple Silicon, `darwin_amd64` for Intel):
+</details>
+
+<details>
+<summary><b>Linux</b>: Secret Service (GNOME Keyring, KWallet)</summary>
+
+Needs `secret-tool` (`apt install libsecret-tools`, `dnf install libsecret`, `pacman -S libsecret`):
 
 ```sh
-tar -xzf spbstu-mcp_*_darwin_arm64.tar.gz
-xattr -d com.apple.quarantine spbstu-mcp      # the binary is not notarized
-mkdir -p ~/.local/bin && mv spbstu-mcp ~/.local/bin/
+secret-tool store --label=spbstu service spbstu account LOGIN@edu.spbstu.ru
+```
+
+</details>
+
+<details>
+<summary><b>Windows</b>: Credential Manager</summary>
+
+```powershell
+cmdkey /generic:spbstu /user:LOGIN@edu.spbstu.ru /pass
+```
+
+</details>
+
+The password is asked with hidden input in every case.
+
+**2. Install the server.** Download the archive for your system from [Releases](https://github.com/kad-xyz/spbstu-mcp/releases/latest)
+and put `spbstu-mcp` somewhere on disk, e.g. `~/.local/bin`. On macOS, clear the download quarantine (the binary is not
+notarized):
+
+```sh
+xattr -d com.apple.quarantine ~/.local/bin/spbstu-mcp
 ```
 
 <details>
@@ -93,7 +115,7 @@ claude mcp add spbstu -s user -- ~/.local/bin/spbstu-mcp
 
 </td><td>
 
-`~/Library/Application Support/Claude/claude_desktop_config.json`:
+`claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`):
 
 ```json
 {
@@ -181,7 +203,7 @@ Then just ask: *"What's going on with my studies?"*
 ```mermaid
 flowchart LR
     C[Claude] -- MCP / stdio --> S[spbstu-mcp]
-    K[(macOS keychain<br/>item "spbstu")] -. login + password .-> S
+    K[(OS credential store<br/>item "spbstu")] -. login + password .-> S
     S -- SSO --> CAS[cas.spbstu.ru]
     CAS --> DL[dl.spbstu.ru<br/>Moodle mobile API]
     S -- SSO --> KC[sso.openedu.ru<br/>«Политех» provider] --> CAS
@@ -197,7 +219,7 @@ flowchart LR
 
 ## Security and privacy
 
-- 🔑 **The password never leaves your Mac except to SPbPU and openedu.ru sign-in pages.** It is read from the keychain at sign-in time and never appears in tool results.
+- 🔑 **The password never leaves your Mac except to SPbPU and openedu.ru sign-in pages.** It is read from the credential store at sign-in time and never appears in tool results.
 - 🗂 **Sessions** are stored in `~/.config/spbstu-mcp/state.json`, readable only by you. Delete the file to sign out everywhere.
 - ✋ **Writes need your confirmation.** The descriptions of `dl_submit_assignment`, `dl_forum_*` and `mail_send` tell the model to act only after you have confirmed exactly what goes where. `mail_send` only saves a draft unless asked to send.
 - 🚫 **No exams.** The server cannot take graded tests or proctored exams, and is not meant to.
@@ -209,7 +231,7 @@ flowchart LR
 
 | Flag | Default | Description |
 |---|---|---|
-| `-keychain-service` | `spbstu` | Name of the keychain item with the university login. |
+| `-keychain-service` | `spbstu` | Name of the credential store item with the university login. |
 | `-downloads` | `~/Downloads/spbstu` | Where downloaded files and attachments are saved. |
 | `-group` | | Default group for `schedule`, e.g. `5130902/30201`. |
 
@@ -217,7 +239,7 @@ flowchart LR
 
 | Symptom | Fix |
 |---|---|
-| `keychain item "spbstu" not found` | Create it, see [Quick start](#quick-start). |
+| `keychain item "spbstu" not found` (or `Secret Service item`, `credential`) | Create it, see [Quick start](#quick-start). |
 | `CAS rejected the credentials` | Check the stored password length; re-create the item with `-w` last. |
 | `mail.spbstu.ru rejected the credentials` | The keychain account must be the full address, `LOGIN@edu.spbstu.ru`. |
 | Sign-in keeps failing after many attempts | The site may have locked sign-ins for a while. Wait, then try once. |
@@ -227,7 +249,7 @@ flowchart LR
 
 ```sh
 go test ./...                    # offline unit tests
-SPBSTU_LIVE=1 go test ./...      # plus checks against the live services (needs the keychain item)
+SPBSTU_LIVE=1 go test ./...      # plus checks against the live services (needs the credential item)
 go build -o bin/spbstu-mcp ./cmd/spbstu-mcp
 ```
 
@@ -239,7 +261,7 @@ internal/ews       Exchange Web Services client
 internal/openedu   openedu.ru and Open edX client
 internal/mypoly    my.spbstu.ru client
 internal/ruz       public timetable client
-internal/keychain  macOS keychain access
+internal/keychain  credential stores: macOS keychain, Secret Service, Windows Credential Manager
 internal/state     persisted sessions and cookie jar
 ```
 

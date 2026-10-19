@@ -18,11 +18,11 @@ MCP-сервер для студентов СПбПУ (Политеха): даё
 
 ## Установка
 
-Нужен macOS: логин и пароль хранятся в связке ключей.
+Работает на macOS, Linux и Windows: логин и пароль хранятся в системном хранилище учётных данных.
 
-### 1. Логин и пароль ЕУЗ — в связку ключей
+### 1. Логин и пароль ЕУЗ — в хранилище учётных данных
 
-В приложении «Терминал»:
+**macOS** (связка ключей), в приложении «Терминал»:
 
 ```sh
 security add-generic-password -s spbstu -a ЛОГИН@edu.spbstu.ru -T /usr/bin/security -w
@@ -34,11 +34,23 @@ security add-generic-password -s spbstu -a ЛОГИН@edu.spbstu.ru -T /usr/bin/
 security find-generic-password -s spbstu -w | tr -d '\n' | wc -c
 ```
 
-Пароль никуда, кроме серверов СПбПУ и openedu.ru, не уходит и в ответах модели не появляется.
+**Linux** (GNOME Keyring / KWallet; нужен `secret-tool` из пакета `libsecret-tools` или `libsecret`):
+
+```sh
+secret-tool store --label=spbstu service spbstu account ЛОГИН@edu.spbstu.ru
+```
+
+**Windows** («Диспетчер учётных данных»):
+
+```powershell
+cmdkey /generic:spbstu /user:ЛОГИН@edu.spbstu.ru /pass
+```
+
+Пароль везде спрашивается со скрытым вводом и никуда, кроме серверов СПбПУ и openedu.ru, не уходит и в ответах модели не появляется.
 
 ### 2. Сервер
 
-Готовый бинарник — со страницы [Releases](../../releases) (`darwin_arm64` для Apple Silicon, `darwin_amd64` для Intel):
+Готовый бинарник — со страницы [Releases](../../releases) для своей системы (`darwin_arm64` — Apple Silicon, `darwin_amd64` — Intel Mac, `linux_*`, `windows_*`). На macOS:
 
 ```sh
 tar -xzf spbstu-mcp_*_darwin_arm64.tar.gz
@@ -56,7 +68,7 @@ Claude Code:
 claude mcp add spbstu -s user -- ~/.local/bin/spbstu-mcp
 ```
 
-Claude Desktop — в `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Claude Desktop — в `claude_desktop_config.json` (macOS: `~/Library/Application Support/Claude/`, Windows: `%APPDATA%\Claude\`):
 
 ```json
 { "mcpServers": { "spbstu": { "command": "/Users/ИМЯ/.local/bin/spbstu-mcp" } } }
@@ -80,7 +92,7 @@ Claude Desktop — в `~/Library/Application Support/Claude/claude_desktop_confi
 
 | Флаг | По умолчанию | |
 |---|---|---|
-| `-keychain-service` | `spbstu` | имя записи в связке ключей |
+| `-keychain-service` | `spbstu` | имя записи в хранилище учётных данных |
 | `-downloads` | `~/Downloads/spbstu` | куда сохраняются файлы |
 | `-group` | | группа по умолчанию для `schedule`, например `5130902/30201` |
 
