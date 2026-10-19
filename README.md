@@ -145,16 +145,18 @@ Then just ask: *"What's going on with my studies?"*
 ## Tools
 
 <details open>
-<summary><b>Overview</b></summary>
+<summary><b>Across services</b>: 3 tools</summary>
 
 | Tool | Description |
 |---|---|
 | `study_overview` | dl.spbstu.ru deadlines (with recently overdue ones), progress in current openedu.ru courses and unread mail. A source that fails is reported, the rest still come back. |
+| `study_subject` | Everything about one discipline: work-plan hours and control type, the dl course with assignments, quizzes, deadlines and teachers, grades received. |
+| `study_export_ics` | Every upcoming dl and openedu due date as an `.ics` file with day-before reminders, for Apple, Google or Outlook Calendar. |
 
 </details>
 
 <details>
-<summary><b>dl.spbstu.ru</b>: 13 tools</summary>
+<summary><b>dl.spbstu.ru</b>: 20 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -168,6 +170,13 @@ Then just ask: *"What's going on with my studies?"*
 | `dl_discussion_posts` | All posts of a discussion, with attachments. |
 | `dl_page` | Text of a page resource (exam rules, ticket lists). |
 | `dl_download` | Download a file to `~/Downloads/spbstu`. |
+| `dl_quizzes` | Quizzes of a course: opening and closing time, time limit, attempts allowed and used, best grade (information only). |
+| `dl_teachers` | Teachers of a course and their last visit. |
+| `dl_notifications` | Newest notifications: grades, feedback, forum posts, due dates. |
+| `dl_messages` | Private conversations with their last message. |
+| `dl_conversation` | All messages of a conversation. |
+| `dl_search` | Search every course for activities, resources and files. |
+| `dl_send_message` ✍️ | Send a private message, e.g. to a teacher. |
 | `dl_submit_assignment` ✍️ | Upload files and/or text to an assignment, optionally submit for grading. |
 | `dl_forum_new_discussion` ✍️ | Start a discussion, e.g. post a report to an upload forum. |
 | `dl_forum_reply` ✍️ | Reply to a post. |
@@ -175,7 +184,7 @@ Then just ask: *"What's going on with my studies?"*
 </details>
 
 <details>
-<summary><b>Mail</b>: 5 tools</summary>
+<summary><b>Mail</b>: 9 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -184,11 +193,15 @@ Then just ask: *"What's going on with my studies?"*
 | `mail_download_attachment` | Save an attachment to `~/Downloads/spbstu/mail`. |
 | `mail_send` ✍️ | New message or reply. Saves a draft unless `send` is true. |
 | `mail_delete` ✍️ | Move a message or draft to Deleted Items (restorable). |
+| `mail_folders` | Mail folders with total and unread counts. |
+| `mail_move` | Move messages to another folder. |
+| `mail_mark` | Mark messages read or unread. |
+| `mail_calendar` | Events of the mailbox calendar: meetings, webinars, consultations. |
 
 </details>
 
 <details>
-<summary><b>my.spbstu.ru</b>: 4 tools</summary>
+<summary><b>my.spbstu.ru</b>: 5 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -196,6 +209,7 @@ Then just ask: *"What's going on with my studies?"*
 | `my_study_plan` | The programme's study plan: disciplines, semesters, hours, control type. |
 | `my_work_plan` | This year's work plan by semester: lecture, practice, lab and self-study hours. |
 | `my_record_books` | Record books, one per programme, with the group. |
+| `my_debts` | Academic debts: disciplines whose latest grade is failing, and past ones with no grade to check. |
 
 </details>
 

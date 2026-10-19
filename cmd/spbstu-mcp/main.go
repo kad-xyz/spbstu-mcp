@@ -38,7 +38,7 @@ func main() {
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id from dl_course_contents, not its cmid. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
-			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline). schedule reads the public timetable. my_* tools read my.spbstu.ru: grades (record book), study and work plans.",
+			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline). schedule reads the public timetable. my_* tools read my.spbstu.ru: grades (record book), study and work plans, debts. For one discipline use study_subject.",
 	})
 	var (
 		dlSvc   dlService      = dl
@@ -56,6 +56,9 @@ func main() {
 	registerOverview(server, dlSvc, oeSvc, mailSvc)
 	registerSchedule(server, *group)
 	registerMy(server, mySvc)
+	registerDLMore(server, dlSvc)
+	registerMailMore(server, mailSvc)
+	registerStudy(server, dlSvc, oeSvc, mySvc, *downloads)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)

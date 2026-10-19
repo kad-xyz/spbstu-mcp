@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/kad-xyz/spbstu-mcp/internal/demo"
 	"github.com/kad-xyz/spbstu-mcp/internal/ews"
@@ -26,6 +27,13 @@ type dlService interface {
 	SaveSubmission(ctx context.Context, assignID int, paths []string, text string, submit bool) error
 	AddDiscussion(ctx context.Context, forumID int, subject, message string, paths []string) (int, error)
 	Reply(ctx context.Context, postID int, subject, message string, paths []string) error
+	Quizzes(ctx context.Context, courseID int) ([]moodle.Quiz, error)
+	Teachers(ctx context.Context, courseID int) ([]moodle.Person, error)
+	Notifications(ctx context.Context, limit int) ([]moodle.Notification, int, error)
+	Conversations(ctx context.Context, limit int) ([]moodle.Conversation, error)
+	ConversationMessages(ctx context.Context, conversationID int) ([]moodle.Message, error)
+	SendMessage(ctx context.Context, userID int, text string) error
+	Search(ctx context.Context, query string, all bool) ([]moodle.Hit, error)
 }
 
 type mailService interface {
@@ -34,6 +42,10 @@ type mailService interface {
 	Attachment(ctx context.Context, attachmentID string) (string, []byte, error)
 	Submit(ctx context.Context, d ews.Draft) error
 	Delete(ctx context.Context, id string) error
+	Folders(ctx context.Context) ([]ews.Folder, error)
+	Move(ctx context.Context, ids []string, folder string) error
+	MarkRead(ctx context.Context, ids []string, read bool) error
+	Calendar(ctx context.Context, from, to time.Time) ([]ews.Event, error)
 }
 
 type openeduService interface {
