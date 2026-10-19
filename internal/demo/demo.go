@@ -78,8 +78,8 @@ func (DL) Assignments(_ context.Context, courseID int) ([]moodle.Assignment, err
 			"Отчёт — один PDF до 10 страниц, имя файла: Группа_Фамилия_ЛР3.pdf. " +
 			"Работы после срока принимаются в течение недели с понижением на 1 балл.",
 		Files: []moodle.File{
-			{Name: "ЛР3_Нормализация_методичка.pdf", URL: fileBase + "lab3.pdf", Size: 418_304},
-			{Name: "Библиотека_схема_ЛР2.sql", URL: fileBase + "lab2.sql", Size: 3_912},
+			{Name: lab3Guide, URL: fileBase + lab3Guide, Size: int64(len(files[lab3Guide]))},
+			{Name: lab2Schema, URL: fileBase + lab2Schema, Size: int64(len(files[lab2Schema]))},
 		},
 	}}, nil
 }
@@ -92,7 +92,7 @@ func (DL) Contents(_ context.Context, courseID int) ([]moodle.Section, error) {
 		{Name: "Общее", Modules: []moodle.Module{
 			{CMID: 9000, InstanceID: 900, Name: "Объявления", Type: "forum"},
 			{CMID: 9010, InstanceID: 910, Name: "Порядок изучения курса и требования к экзамену", Type: "resource",
-				Files: []moodle.File{{Name: "Требования_к_экзамену.pdf", URL: fileBase + "exam.pdf", Size: 201_118}}},
+				Files: []moodle.File{{Name: examRules, URL: fileBase + examRules, Size: int64(len(files[examRules]))}}},
 		}},
 		{Name: "Лабораторные работы", Modules: []moodle.Module{
 			{CMID: 9002, InstanceID: 5002, Name: "Лабораторная работа 2. ER-моделирование", Type: "assign"},
@@ -128,11 +128,20 @@ func (DL) Page(context.Context, int, int) (string, error) {
 }
 
 func (DL) Download(_ context.Context, fileURL, dir string) (string, error) {
+	name := filepath.Base(fileURL)
+	content, ok := files[name]
+	if !ok {
+		return "", fmt.Errorf("demo: no file %s", name)
+	}
+	return save(dir, name, content)
+}
+
+func save(dir, name, content string) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	path := filepath.Join(dir, "demo-"+filepath.Base(fileURL)+".txt")
-	return path, os.WriteFile(path, []byte("spbstu-mcp demo file\n"), 0o644)
+	path := filepath.Join(dir, name)
+	return path, os.WriteFile(path, []byte(content), 0o644)
 }
 
 func (DL) SaveSubmission(context.Context, int, []string, string, bool) error { return errReadOnly }
@@ -153,7 +162,7 @@ var messages = []ews.Message{
 		To: []string{"Иванов Иван Иванович <ivanov.ii@edu.spbstu.ru>"}, HasAttach: true,
 		Body: "Коллеги, в отчёте по ЛР3 обязательно покажите функциональные зависимости до и после декомпозиции. " +
 			"Пример оформления во вложении.",
-		Attachments: []ews.Attachment{{ID: "demo-att-1", Name: "Пример_отчёта_ЛР3.pdf", Size: 96_512}}},
+		Attachments: []ews.Attachment{{ID: "demo-att-1", Name: reportSample, Size: len(files[reportSample])}}},
 	{ID: "demo-3", Subject: "Срок сдачи «Лабораторная работа 3. Нормализация»", From: "dl.spbstu.ru <noreply@spbstu.ru>",
 		To:   []string{"Иванов Иван Иванович <ivanov.ii@edu.spbstu.ru>"},
 		Body: "Срок сдачи задания «Лабораторная работа 3. Нормализация» истекает через 2 дня."},
@@ -178,10 +187,13 @@ func (Mail) List(_ context.Context, folder string, limit int, _ bool, _ string) 
 	return out, nil
 }
 
-func (Mail) Read(_ context.Context, id string, _ bool) (ews.Message, error) {
-	for _, m := range messages {
+func (Mail) Read(_ context.Context, id string, markRead bool) (ews.Message, error) {
+	for i, m := range messages {
 		if m.ID == id {
-			m.Read = true
+			if markRead {
+				messages[i].Read = true
+				m.Read = true
+			}
 			return m, nil
 		}
 	}
@@ -189,7 +201,7 @@ func (Mail) Read(_ context.Context, id string, _ bool) (ews.Message, error) {
 }
 
 func (Mail) Attachment(context.Context, string) (string, []byte, error) {
-	return "Пример_отчёта_ЛР3.txt", []byte("spbstu-mcp demo attachment\n"), nil
+	return reportSample, []byte(files[reportSample]), nil
 }
 
 func (Mail) Submit(context.Context, ews.Draft) error { return errReadOnly }
