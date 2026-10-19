@@ -41,6 +41,7 @@ the university mailbox and openedu.ru. You sign in with your university account;
 | 🎓 | **dl.spbstu.ru**, the Moodle LMS | courses, course contents, assignments with full task text, deadlines, submission status and feedback, grades, forums, pages, files | submit work to an assignment, post to forums with attachments |
 | ✉️ | **mail.spbstu.ru**, Exchange | list and search mail, read messages, save attachments | write new messages and replies (saved as drafts by default), delete |
 | 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline | |
+| 🗓 | **ruz.spbstu.ru**, the public timetable | weekly timetable of any group or teacher | |
 | 🧭 | **Everything at once** | `study_overview`: dl deadlines, openedu.ru progress and unread mail in one call | |
 | 🚧 | **my.spbstu.ru** | study plan, record book: in progress | |
 
@@ -153,6 +154,15 @@ Then just ask: *"What's going on with my studies?"*
 </details>
 
 <details>
+<summary><b>Timetable</b>: 1 tool</summary>
+
+| Tool | Description |
+|---|---|
+| `schedule` | Week of a group or a teacher: time, type, teachers, room, webinar and dl links. Ambiguous names return the candidates. |
+
+</details>
+
+<details>
 <summary><b>openedu.ru</b>: 4 tools</summary>
 
 | Tool | Description |
@@ -201,6 +211,7 @@ flowchart LR
 |---|---|---|
 | `-keychain-service` | `spbstu` | Name of the keychain item with the university login. |
 | `-downloads` | `~/Downloads/spbstu` | Where downloaded files and attachments are saved. |
+| `-group` | | Default group for `schedule`, e.g. `5130902/30201`. |
 
 ## Troubleshooting
 
@@ -227,6 +238,7 @@ internal/moodle    dl.spbstu.ru client
 internal/ews       Exchange Web Services client
 internal/openedu   openedu.ru and Open edX client
 internal/mypoly    my.spbstu.ru client
+internal/ruz       public timetable client
 internal/keychain  macOS keychain access
 internal/state     persisted sessions and cookie jar
 ```

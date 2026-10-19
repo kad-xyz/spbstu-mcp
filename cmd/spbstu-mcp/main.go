@@ -23,6 +23,7 @@ var version = "dev"
 func main() {
 	service := flag.String("keychain-service", "spbstu", "generic password item holding the SPbPU login")
 	home, _ := os.UserHomeDir()
+	group := flag.String("group", "", "default group for the schedule tool, e.g. 5130902/30201")
 	downloads := flag.String("downloads", filepath.Join(home, "Downloads", "spbstu"), "where dl_download saves files")
 	flag.Parse()
 
@@ -34,7 +35,7 @@ func main() {
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id from dl_course_contents, not its cmid. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
-			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline).",
+			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline). schedule reads the public timetable.",
 	})
 	oe := &openedu.Client{KeychainService: *service, State: store}
 	mail := &ews.Client{KeychainService: *service}
@@ -43,6 +44,7 @@ func main() {
 	registerMail(server, mail, *downloads)
 	registerOpenEdu(server, oe)
 	registerOverview(server, dl, oe, mail)
+	registerSchedule(server, *group)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
