@@ -332,3 +332,10 @@ func (c *Client) Submit(ctx context.Context, d Draft) error {
 	var ignored struct{}
 	return c.do(ctx, body, &ignored)
 }
+
+// Delete moves a message to Deleted Items, from where it can still be restored.
+func (c *Client) Delete(ctx context.Context, id string) error {
+	body := fmt.Sprintf(`<m:DeleteItem DeleteType="MoveToDeletedItems"><m:ItemIds><t:ItemId Id="%s"/></m:ItemIds></m:DeleteItem>`, esc(id))
+	var ignored struct{}
+	return c.do(ctx, body, &ignored)
+}

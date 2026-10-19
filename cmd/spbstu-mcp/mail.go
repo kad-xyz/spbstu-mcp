@@ -26,6 +26,10 @@ type mailAttachmentIn struct {
 	AttachmentID string `json:"attachment_id" jsonschema:"attachment_id from mail_read"`
 }
 
+type mailDeleteIn struct {
+	ID string `json:"id" jsonschema:"message id from mail_list"`
+}
+
 type mailSendIn struct {
 	To        []string `json:"to,omitempty" jsonschema:"recipient addresses; for a reply, defaults to the original sender"`
 	Cc        []string `json:"cc,omitempty" jsonschema:"copy addresses"`
@@ -37,6 +41,7 @@ type mailSendIn struct {
 }
 
 func registerMail(s *mcp.Server, mail *ews.Client, downloads string) {
+	registerMailDelete(s, mail)
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 
 	mcp.AddTool(s, &mcp.Tool{Name: "mail_list", Annotations: readOnly,
@@ -101,3 +106,15 @@ func registerMail(s *mcp.Server, mail *ews.Client, downloads string) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+func registerMailDelete(s *mcp.Server, mail *ews.Client) {
+	mcp.AddTool(s, &mcp.Tool{Name: "mail_delete",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true)},
+		Description: "Move a message (or a draft) to Deleted Items; it can be restored from there. Only after the user's confirmation."},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in mailDeleteIn) (*mcp.CallToolResult, any, error) {
+			if err := mail.Delete(ctx, in.ID); err != nil {
+				return nil, nil, err
+			}
+			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "Moved to Deleted Items."}}}, nil, nil
+		})
+}

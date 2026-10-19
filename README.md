@@ -39,7 +39,7 @@ the university mailbox and openedu.ru. You sign in with your university account;
 | | Service | Read | Write |
 |---|---|---|---|
 | 🎓 | **dl.spbstu.ru**, the Moodle LMS | courses, course contents, assignments with full task text, deadlines, submission status and feedback, grades, forums, pages, files | submit work to an assignment, post to forums with attachments |
-| ✉️ | **mail.spbstu.ru**, Exchange | list and search mail, read messages, save attachments | write new messages and replies (saved as drafts by default) |
+| ✉️ | **mail.spbstu.ru**, Exchange | list and search mail, read messages, save attachments | write new messages and replies (saved as drafts by default), delete |
 | 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline | |
 | 🧭 | **Everything at once** | `study_overview`: dl deadlines, openedu.ru progress and unread mail in one call | |
 | 🚧 | **my.spbstu.ru** | study plan, record book: in progress | |
@@ -140,7 +140,7 @@ Then just ask: *"What's going on with my studies?"*
 </details>
 
 <details>
-<summary><b>Mail</b>: 4 tools</summary>
+<summary><b>Mail</b>: 5 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -148,6 +148,7 @@ Then just ask: *"What's going on with my studies?"*
 | `mail_read` | A whole message as plain text, with recipients and attachments. |
 | `mail_download_attachment` | Save an attachment to `~/Downloads/spbstu/mail`. |
 | `mail_send` ✍️ | New message or reply. Saves a draft unless `send` is true. |
+| `mail_delete` ✍️ | Move a message or draft to Deleted Items (restorable). |
 
 </details>
 
