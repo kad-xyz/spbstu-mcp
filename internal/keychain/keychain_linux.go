@@ -21,7 +21,8 @@ func load(service string) (Credentials, error) {
 	if err != nil {
 		return Credentials{}, fmt.Errorf("Secret Service item %q not found: %w", service, err)
 	}
-	listing, err := run("search", "service", service)
+	// search prints the attributes on stderr, so read both streams.
+	listing, err := run("search", "--all", "service", service)
 	if err != nil {
 		return Credentials{}, fmt.Errorf("Secret Service item %q: %w", service, err)
 	}
@@ -49,8 +50,8 @@ func run(args ...string) (string, error) {
 		}
 		return "", err
 	}
-	if out.Len() == 0 {
+	if out.Len() == 0 && stderr.Len() == 0 {
 		return "", errors.New("no such item")
 	}
-	return out.String(), nil
+	return out.String() + stderr.String(), nil
 }
