@@ -14,6 +14,7 @@ import (
 
 	"github.com/kad-xyz/spbstu-mcp/internal/ews"
 	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
+	"github.com/kad-xyz/spbstu-mcp/internal/openedu"
 	"github.com/kad-xyz/spbstu-mcp/internal/state"
 )
 
@@ -32,11 +33,13 @@ func main() {
 		Instructions: "SPbPU (Политех) student services of the user. dl_* tools read the dl.spbstu.ru Moodle: " +
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id from dl_course_contents, not its cmid. mail_* tools work with the university " +
-			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation.",
+			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
+			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline).",
 	})
 	registerDL(server, dl, *downloads)
 	registerDLWrite(server, dl)
 	registerMail(server, &ews.Client{KeychainService: *service}, *downloads)
+	registerOpenEdu(server, &openedu.Client{KeychainService: *service, State: store})
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
