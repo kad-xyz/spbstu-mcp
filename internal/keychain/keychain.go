@@ -1,56 +1,36 @@
-// Package keychain reads credentials from the macOS login keychain through the security CLI.
+// Package keychain reads the university login from the operating system's credential store:
+// the macOS keychain, the Secret Service on Linux (GNOME Keyring, KWallet) or the Windows
+// Credential Manager.
 package keychain
 
 import (
-	"bytes"
-	"errors"
 	"fmt"
-	"os/exec"
-	"regexp"
 	"strings"
 )
 
-var acctRe = regexp.MustCompile(`"acct"<blob>="([^"]*)"`)
-
-// Credentials is a login stored as a generic password item.
+// Credentials is the stored university login.
 type Credentials struct {
 	Account  string
 	Password string
 }
 
-// Load returns the account and password of the generic password item named service.
+// Load returns the credentials stored under service.
 func Load(service string) (Credentials, error) {
-	attrs, err := run("find-generic-password", "-s", service)
+	c, err := load(service)
 	if err != nil {
-		return Credentials{}, fmt.Errorf("keychain item %q not found: %w", service, err)
+		return Credentials{}, err
 	}
-	m := acctRe.FindStringSubmatch(attrs)
-	if m == nil {
-		return Credentials{}, fmt.Errorf("keychain item %q has no account", service)
+	if c.Account == "" {
+		return Credentials{}, fmt.Errorf("credential %q has no account", service)
 	}
-	pw, err := run("find-generic-password", "-s", service, "-w")
-	if err != nil {
-		return Credentials{}, fmt.Errorf("read password of keychain item %q: %w", service, err)
+	if c.Password == "" {
+		return Credentials{}, fmt.Errorf("credential %q has an empty password", service)
 	}
-	pw = strings.TrimRight(pw, "\n")
-	if pw == "" {
-		return Credentials{}, fmt.Errorf("keychain item %q has an empty password", service)
-	}
-	return Credentials{Account: m[1], Password: pw}, nil
+	return c, nil
 }
 
 // Login is the account without its mail domain, as the university SSO expects it.
 func (c Credentials) Login() string {
 	login, _, _ := strings.Cut(c.Account, "@")
 	return login
-}
-
-func run(args ...string) (string, error) {
-	var out, stderr bytes.Buffer
-	cmd := exec.Command("/usr/bin/security", args...)
-	cmd.Stdout, cmd.Stderr = &out, &stderr
-	if err := cmd.Run(); err != nil {
-		return "", errors.New(strings.TrimSpace(stderr.String()))
-	}
-	return out.String(), nil
 }
