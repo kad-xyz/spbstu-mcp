@@ -1,0 +1,16 @@
+name: Feature request
+description: A new tool or a new SPbPU service
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to do
+      description: The question you would ask Claude, e.g. "show my record book".
+    validations:
+      required: true
+  - type: textarea
+    id: where
+    attributes:
+      label: Where the data lives
+      description: The site and page, and how it signs in, if you know.

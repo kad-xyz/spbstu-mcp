@@ -1,0 +1,35 @@
+name: Bug report
+description: Something does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste passwords, tokens, cookies or `state.json`.** Remove personal data from error messages.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The tool you called, what you expected and what you got (the error text).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Release tag or commit.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: service
+    attributes:
+      label: Service
+      options: [dl.spbstu.ru, mail.spbstu.ru, openedu.ru, my.spbstu.ru, study_overview, installation]
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: macOS 26.6, Apple Silicon

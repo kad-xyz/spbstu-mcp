@@ -1,88 +1,242 @@
+<div align="center">
+
 # spbstu-mcp
 
-MCP-сервер для студентов СПбПУ (Политеха): даёт Claude (и любому другому MCP-клиенту) доступ к твоей учёбе.
+**Your Peter the Great St. Petersburg Polytechnic University (SPbPU) studies, available to Claude.**
 
-| Сервис | Что умеет |
-|---|---|
-| **dl.spbstu.ru** (Moodle) | курсы, содержимое курса, задания с полным текстом, дедлайны, статус сдачи и оценка, оценки по курсу, форумы, страницы, скачивание файлов; **сдача работ** и посты в форумы с вложениями |
-| **mail.spbstu.ru** (почта) | список и поиск писем, чтение, сохранение вложений, новые письма и ответы |
-| **openedu.ru** (Открытое образование) | курсы, прогресс и оценки, сроки, оглавление курса |
-| **my.spbstu.ru** | в разработке |
+An [MCP](https://modelcontextprotocol.io) server for SPbPU student services: the dl.spbstu.ru Moodle,
+the university mailbox and openedu.ru. You sign in with your university account; your password stays in the macOS keychain.
 
-`study_overview` одним вызовом собирает сводку по семестру: дедлайны dl, прогресс на openedu.ru и непрочитанную почту.
+[![CI](https://github.com/kad-xyz/spbstu-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/kad-xyz/spbstu-mcp/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/kad-xyz/spbstu-mcp?sort=semver)](https://github.com/kad-xyz/spbstu-mcp/releases/latest)
+[![Go](https://img.shields.io/github/go-mod/go-version/kad-xyz/spbstu-mcp)](go.mod)
+![Platform](https://img.shields.io/badge/platform-macOS-lightgrey?logo=apple)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
-Неофициальный проект, к СПбПУ отношения не имеет.
+**English** · [Русский](README.ru.md)
 
-## Установка
+</div>
 
-Нужен macOS: логин и пароль хранятся в связке ключей.
+---
 
-### 1. Логин и пароль ЕУЗ — в связку ключей
+> *"What's due this week?"* · *"Summarise the database course assignment and download its files."* ·
+> *"Did the teacher grade my coursework?"* · *"Draft a reply to the curator's email."*
 
-В приложении «Терминал»:
+## Contents
+
+- [What it does](#what-it-does)
+- [Quick start](#quick-start)
+- [Tools](#tools)
+- [How it works](#how-it-works)
+- [Security and privacy](#security-and-privacy)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [Contributing](#contributing)
+
+## What it does
+
+| | Service | Read | Write |
+|---|---|---|---|
+| 🎓 | **dl.spbstu.ru**, the Moodle LMS | courses, course contents, assignments with full task text, deadlines, submission status and feedback, grades, forums, pages, files | submit work to an assignment, post to forums with attachments |
+| ✉️ | **mail.spbstu.ru**, Exchange | list and search mail, read messages, save attachments | write new messages and replies (saved as drafts by default) |
+| 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline | |
+| 🧭 | **Everything at once** | `study_overview`: dl deadlines, openedu.ru progress and unread mail in one call | |
+| 🚧 | **my.spbstu.ru** | study plan, record book: in progress | |
+
+## Quick start
+
+> [!NOTE]
+> macOS only: credentials are read from the macOS keychain.
+
+**1. Store your university login in the keychain.** In Terminal:
 
 ```sh
-security add-generic-password -s spbstu -a ЛОГИН@edu.spbstu.ru -T /usr/bin/security -w
+security add-generic-password -s spbstu -a LOGIN@edu.spbstu.ru -T /usr/bin/security -w
 ```
 
-`ЛОГИН` — логин единой учётной записи (как в почте `ЛОГИН@edu.spbstu.ru`). `-w` должен стоять **последним** — тогда `security` спросит пароль со скрытым вводом. Проверить, что пароль записался (выводит только длину):
+`LOGIN` is your single university account (the one in `LOGIN@edu.spbstu.ru`).
 
-```sh
-security find-generic-password -s spbstu -w | tr -d '\n' | wc -c
-```
+> [!IMPORTANT]
+> Keep `-w` **last**, so that `security` prompts for the password with hidden input. Anything after `-w` would be
+> stored as the password itself. To check what was stored (prints only the length):
+> `security find-generic-password -s spbstu -w | tr -d '\n' | wc -c`
 
-Пароль никуда, кроме серверов СПбПУ и openedu.ru, не уходит и в ответах модели не появляется.
-
-### 2. Сервер
-
-Готовый бинарник — со страницы [Releases](../../releases) (`darwin_arm64` для Apple Silicon, `darwin_amd64` для Intel):
+**2. Install the server.** Download the archive for your Mac from [Releases](https://github.com/kad-xyz/spbstu-mcp/releases/latest)
+(`darwin_arm64` for Apple Silicon, `darwin_amd64` for Intel):
 
 ```sh
 tar -xzf spbstu-mcp_*_darwin_arm64.tar.gz
-xattr -d com.apple.quarantine spbstu-mcp   # бинарник не подписан
+xattr -d com.apple.quarantine spbstu-mcp      # the binary is not notarized
 mkdir -p ~/.local/bin && mv spbstu-mcp ~/.local/bin/
 ```
 
-Или собрать из исходников (Go 1.26+): `go build -o ~/.local/bin/spbstu-mcp ./cmd/spbstu-mcp`.
+<details>
+<summary>Or build from source (Go 1.26+)</summary>
 
-### 3. Подключить к Claude
+```sh
+go install github.com/kad-xyz/spbstu-mcp/cmd/spbstu-mcp@latest
+```
 
-Claude Code:
+</details>
+
+**3. Connect it to Claude.**
+
+<table>
+<tr><th>Claude Code</th><th>Claude Desktop</th></tr>
+<tr><td>
 
 ```sh
 claude mcp add spbstu -s user -- ~/.local/bin/spbstu-mcp
 ```
 
-Claude Desktop — в `~/Library/Application Support/Claude/claude_desktop_config.json`:
+</td><td>
+
+`~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
-{ "mcpServers": { "spbstu": { "command": "/Users/ИМЯ/.local/bin/spbstu-mcp" } } }
+{
+  "mcpServers": {
+    "spbstu": { "command": "/Users/YOU/.local/bin/spbstu-mcp" }
+  }
+}
 ```
 
-Дальше просто спрашивай: «что у меня горит по учёбе», «разбери задание по базам данных», «какие письма пришли от преподавателей».
+</td></tr>
+</table>
 
-## Как это работает
+Then just ask: *"What's going on with my studies?"*
 
-- **dl.spbstu.ru** — вход через ЕУЗ (cas.spbstu.ru), затем токен мобильного API Moodle, как у приложения Moodle.
-- **openedu.ru** — вход через «Политех» в SSO Открытого образования, данные из API Open edX.
-- **Почта** — Exchange Web Services с логином и паролем ЕУЗ.
-- Сессии хранятся в `~/.config/spbstu-mcp/state.json` (доступ только у тебя), поэтому сервер входит заново, только когда сессия истекла: частые входы сайты Политеха блокируют.
+## Tools
 
-## Безопасность
+<details open>
+<summary><b>Overview</b></summary>
 
-- Всё, что что-то отправляет (`dl_submit_assignment`, `dl_forum_*`, `mail_send`), по описанию инструмента выполняется только после явного подтверждения пользователя; `mail_send` по умолчанию лишь сохраняет черновик.
-- Оцениваемые тесты и экзамены сервер проходить не умеет и не будет.
+| Tool | Description |
+|---|---|
+| `study_overview` | dl.spbstu.ru deadlines (with recently overdue ones), progress in current openedu.ru courses and unread mail. A source that fails is reported, the rest still come back. |
 
-## Параметры
+</details>
 
-| Флаг | По умолчанию | |
+<details>
+<summary><b>dl.spbstu.ru</b>: 13 tools</summary>
+
+| Tool | Description |
+|---|---|
+| `dl_courses` | Courses you are enrolled in (current ones, or all). |
+| `dl_course_contents` | Sections of a course with their activities, descriptions and file links. |
+| `dl_deadlines` | Upcoming and recently overdue due dates across all courses. |
+| `dl_assignments` | Assignments of a course: full task text, due dates, attached files. |
+| `dl_submission_status` | Your submission for an assignment: status, files, grade, teacher feedback. |
+| `dl_grades` | Your grades in a course. |
+| `dl_forum_discussions` | Discussions of a forum. |
+| `dl_discussion_posts` | All posts of a discussion, with attachments. |
+| `dl_page` | Text of a page resource (exam rules, ticket lists). |
+| `dl_download` | Download a file to `~/Downloads/spbstu`. |
+| `dl_submit_assignment` ✍️ | Upload files and/or text to an assignment, optionally submit for grading. |
+| `dl_forum_new_discussion` ✍️ | Start a discussion, e.g. post a report to an upload forum. |
+| `dl_forum_reply` ✍️ | Reply to a post. |
+
+</details>
+
+<details>
+<summary><b>Mail</b>: 4 tools</summary>
+
+| Tool | Description |
+|---|---|
+| `mail_list` | Newest messages of a folder; unread only; search (`from:name`, `subject:word`, plain words). |
+| `mail_read` | A whole message as plain text, with recipients and attachments. |
+| `mail_download_attachment` | Save an attachment to `~/Downloads/spbstu/mail`. |
+| `mail_send` ✍️ | New message or reply. Saves a draft unless `send` is true. |
+
+</details>
+
+<details>
+<summary><b>openedu.ru</b>: 4 tools</summary>
+
+| Tool | Description |
+|---|---|
+| `openedu_courses` | Your enrolled courses. |
+| `openedu_progress` | Completed units, current grade, grading policy, score of every subsection. |
+| `openedu_dates` | Course start, end and due dates. |
+| `openedu_outline` | Chapters and subsections with completion and links. |
+
+</details>
+
+✍️ *changes something on a university service; see [Security and privacy](#security-and-privacy).*
+
+## How it works
+
+```mermaid
+flowchart LR
+    C[Claude] -- MCP / stdio --> S[spbstu-mcp]
+    K[(macOS keychain<br/>item "spbstu")] -. login + password .-> S
+    S -- SSO --> CAS[cas.spbstu.ru]
+    CAS --> DL[dl.spbstu.ru<br/>Moodle mobile API]
+    S -- SSO --> KC[sso.openedu.ru<br/>«Политех» provider] --> CAS
+    KC --> OE[courses.openedu.ru<br/>Open edX API]
+    S -- EWS, Basic auth over TLS --> M[mail.spbstu.ru<br/>Exchange]
+    S <-. sessions .-> ST[(~/.config/spbstu-mcp<br/>state.json, 0600)]
+```
+
+- **dl.spbstu.ru**: signs in through the university SSO and obtains a Moodle mobile web service token, the same way the official Moodle app does.
+- **openedu.ru**: signs in through the «Политех» identity provider of the openedu.ru SSO, then reads the Open edX course APIs.
+- **Mail**: Exchange Web Services with the same account.
+- **Sessions** (the Moodle token and cookies) are kept between runs, so the server signs in again only when a session has expired. University sites lock accounts after frequent sign-ins.
+
+## Security and privacy
+
+- 🔑 **The password never leaves your Mac except to SPbPU and openedu.ru sign-in pages.** It is read from the keychain at sign-in time and never appears in tool results.
+- 🗂 **Sessions** are stored in `~/.config/spbstu-mcp/state.json`, readable only by you. Delete the file to sign out everywhere.
+- ✋ **Writes need your confirmation.** The descriptions of `dl_submit_assignment`, `dl_forum_*` and `mail_send` tell the model to act only after you have confirmed exactly what goes where. `mail_send` only saves a draft unless asked to send.
+- 🚫 **No exams.** The server cannot take graded tests or proctored exams, and is not meant to.
+
+> [!WARNING]
+> This is an unofficial project, not affiliated with SPbPU or openedu.ru. Use it with your own account only.
+
+## Configuration
+
+| Flag | Default | Description |
 |---|---|---|
-| `-keychain-service` | `spbstu` | имя записи в связке ключей |
-| `-downloads` | `~/Downloads/spbstu` | куда сохраняются файлы |
+| `-keychain-service` | `spbstu` | Name of the keychain item with the university login. |
+| `-downloads` | `~/Downloads/spbstu` | Where downloaded files and attachments are saved. |
 
-## Разработка
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `keychain item "spbstu" not found` | Create it, see [Quick start](#quick-start). |
+| `CAS rejected the credentials` | Check the stored password length; re-create the item with `-w` last. |
+| `mail.spbstu.ru rejected the credentials` | The keychain account must be the full address, `LOGIN@edu.spbstu.ru`. |
+| Sign-in keeps failing after many attempts | The site may have locked sign-ins for a while. Wait, then try once. |
+| macOS: *"cannot be opened because the developer cannot be verified"* | `xattr -d com.apple.quarantine ~/.local/bin/spbstu-mcp` |
+
+## Development
 
 ```sh
-go test ./...                     # офлайн-тесты
-SPBSTU_LIVE=1 go test ./...       # плюс проверки на настоящих сервисах (нужна запись в связке ключей)
+go test ./...                    # offline unit tests
+SPBSTU_LIVE=1 go test ./...      # plus checks against the live services (needs the keychain item)
+go build -o bin/spbstu-mcp ./cmd/spbstu-mcp
 ```
+
+```
+cmd/spbstu-mcp     MCP tools (dl, mail, openedu, overview)
+internal/cas       university SSO sign-in
+internal/moodle    dl.spbstu.ru client
+internal/ews       Exchange Web Services client
+internal/openedu   openedu.ru and Open edX client
+internal/mypoly    my.spbstu.ru client
+internal/keychain  macOS keychain access
+internal/state     persisted sessions and cookie jar
+```
+
+Releases are built by GitHub Actions on every `v*` tag.
+
+## Contributing
+
+Contributions are welcome, in English or Russian: read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+Security issues go through [private advisories](SECURITY.md), not public issues.
+
+## License
+
+[MIT](LICENSE)
