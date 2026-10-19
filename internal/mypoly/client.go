@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"regexp"
 	"strings"
@@ -22,8 +21,6 @@ const (
 	loginURL  = BaseURL + "/accounts/basic-login/"
 	cookieKey = "my.cookies"
 )
-
-var baseURL, _ = url.Parse(BaseURL)
 
 var csrfRe = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`)
 
@@ -43,13 +40,7 @@ func (c *Client) Get(ctx context.Context, path string) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.client == nil {
-		jar, _ := cookiejar.New(nil)
-		if c.State != nil {
-			if saved, err := http.ParseCookie(c.State.Get(cookieKey)); err == nil {
-				jar.SetCookies(baseURL, saved)
-			}
-		}
-		c.client = &http.Client{Jar: jar}
+		c.client = &http.Client{Jar: state.NewJar(c.State, cookieKey)}
 	}
 	body, loggedOut, err := c.get(ctx, path)
 	if err != nil || !loggedOut {
@@ -128,13 +119,6 @@ func (c *Client) signIn(ctx context.Context) error {
 	resp.Body.Close()
 	if strings.HasPrefix(resp.Request.URL.Path, "/accounts/") {
 		return errors.New("my.spbstu.ru rejected the credentials (or locked the account after too many sign-ins; wait before retrying)")
-	}
-	if c.State != nil {
-		var pairs []string
-		for _, ck := range c.client.Jar.Cookies(baseURL) {
-			pairs = append(pairs, ck.Name+"="+ck.Value)
-		}
-		_ = c.State.Set(cookieKey, strings.Join(pairs, "; "))
 	}
 	return nil
 }

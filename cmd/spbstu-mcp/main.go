@@ -30,16 +30,19 @@ func main() {
 	dl := &moodle.Client{KeychainService: *service, State: store}
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "spbstu-mcp", Version: version}, &mcp.ServerOptions{
-		Instructions: "SPbPU (Политех) student services of the user. dl_* tools read the dl.spbstu.ru Moodle: " +
+		Instructions: "SPbPU (Политех) student services of the user. For \"what is due / what is going on\" start with study_overview. dl_* tools read the dl.spbstu.ru Moodle: " +
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id from dl_course_contents, not its cmid. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
 			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline).",
 	})
+	oe := &openedu.Client{KeychainService: *service, State: store}
+	mail := &ews.Client{KeychainService: *service}
 	registerDL(server, dl, *downloads)
 	registerDLWrite(server, dl)
-	registerMail(server, &ews.Client{KeychainService: *service}, *downloads)
-	registerOpenEdu(server, &openedu.Client{KeychainService: *service, State: store})
+	registerMail(server, mail, *downloads)
+	registerOpenEdu(server, oe)
+	registerOverview(server, dl, oe, mail)
 
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)

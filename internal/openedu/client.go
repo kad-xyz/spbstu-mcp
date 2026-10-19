@@ -10,7 +10,6 @@ import (
 	"html"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"regexp"
 	"strings"
@@ -32,9 +31,6 @@ const (
 
 var (
 	brokerRe = regexp.MustCompile(`/realms/openedu/broker/spbstu/login\?[^"\\]+`)
-	// Sessions of these hosts are kept between runs: the SSO's lets either site sign in again
-	// without a new SPbPU sign-in.
-	persisted = []string{PortalURL, LMSURL, ssoURL}
 )
 
 // Client keeps openedu.ru and courses.openedu.ru sessions and signs in when one lapses.
@@ -48,32 +44,8 @@ type Client struct {
 }
 
 func (c *Client) init() {
-	if c.client != nil {
-		return
-	}
-	jar, _ := cookiejar.New(nil)
-	if c.State != nil {
-		for _, site := range persisted {
-			u, _ := url.Parse(site)
-			if saved, err := http.ParseCookie(c.State.Get("openedu.cookies." + u.Host)); err == nil {
-				jar.SetCookies(u, saved)
-			}
-		}
-	}
-	c.client = &http.Client{Jar: jar}
-}
-
-func (c *Client) save() {
-	if c.State == nil {
-		return
-	}
-	for _, site := range persisted {
-		u, _ := url.Parse(site)
-		var pairs []string
-		for _, ck := range c.client.Jar.Cookies(u) {
-			pairs = append(pairs, ck.Name+"="+ck.Value)
-		}
-		_ = c.State.Set("openedu.cookies."+u.Host, strings.Join(pairs, "; "))
+	if c.client == nil {
+		c.client = &http.Client{Jar: state.NewJar(c.State, "openedu.cookies")}
 	}
 }
 
@@ -133,7 +105,6 @@ func (c *Client) API(ctx context.Context, path string, out any) error {
 
 // refreshJWT asks the LMS for new JWT cookies on the strength of its session cookie.
 func (c *Client) refreshJWT(ctx context.Context) {
-	defer c.save()
 	lms, _ := url.Parse(LMSURL)
 	csrf := ""
 	for _, ck := range c.client.Jar.Cookies(lms) {
@@ -172,12 +143,11 @@ func (c *Client) fetch(ctx context.Context, u string) ([]byte, int, *url.URL, er
 // signIn opens a site's SSO login; when the SSO session has lapsed too, it signs in through
 // the SPbPU identity provider with the keychain credentials.
 func (c *Client) signIn(ctx context.Context, start, host string) error {
-	defer c.save()
 	page, _, final, err := c.fetch(ctx, start)
 	if err != nil {
 		return err
 	}
-	if final.Host == host {
+	if signedIn(final) {
 		return nil
 	}
 	broker := brokerRe.Find(page)
@@ -193,8 +163,14 @@ func (c *Client) signIn(ctx context.Context, start, host string) error {
 	if err != nil {
 		return err
 	}
-	if end.Host != host {
+	if !signedIn(end) {
 		return errors.New(host + " sign-in stopped at " + end.Host + end.Path + " (the account may need linking in a browser first)")
 	}
 	return nil
+}
+
+// signedIn reports whether a sign-in ended back on openedu.ru or its LMS rather than on a
+// login page: the LMS hands the browser on to the portal once it has its session.
+func signedIn(u *url.URL) bool {
+	return u.Host == "openedu.ru" || u.Host == "courses.openedu.ru"
 }
