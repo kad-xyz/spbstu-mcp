@@ -192,7 +192,7 @@ Then just ask: *"What's going on with my studies?"*
 | `mail_list` | Newest messages of a folder; unread only; search (`from:name`, `subject:word`, plain words). |
 | `mail_read` | A whole message as plain text, with recipients and attachments. |
 | `mail_download_attachment` | Save an attachment to `~/Downloads/spbstu/mail`. |
-| `mail_send` ✍️ | New message or reply. Saves a draft unless `send` is true. |
+| `mail_send` ✍️ | New message or reply, with file attachments (up to 20 MB). Saves a draft unless `send` is true. |
 | `mail_delete` ✍️ | Move a message or draft to Deleted Items (restorable). |
 | `mail_folders` | Mail folders with total and unread counts. |
 | `mail_move` | Move messages to another folder. |

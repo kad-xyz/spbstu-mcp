@@ -4,11 +4,14 @@ package ews
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -283,13 +286,58 @@ type Draft struct {
 	Body      string
 	ReplyToID string // reply to this message (quoting it); Subject and To default to the original's
 	ReplyAll  bool
-	Send      bool // false saves to Drafts
+	Files     []string // local files to attach
+	Send      bool     // false saves to Drafts
 }
 
-// Submit sends the message, or saves it in Drafts.
+// MaxAttachBytes bounds the files of one message, below the usual Exchange message size limit.
+const MaxAttachBytes = 20 << 20
+
+type attachFile struct {
+	Name    string
+	Content []byte
+}
+
+func readFiles(paths []string) ([]attachFile, error) {
+	var out []attachFile
+	total := 0
+	for _, p := range paths {
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return nil, err
+		}
+		total += len(b)
+		if total > MaxAttachBytes {
+			return nil, fmt.Errorf("attachments exceed %d MB", MaxAttachBytes>>20)
+		}
+		out = append(out, attachFile{Name: filepath.Base(p), Content: b})
+	}
+	return out, nil
+}
+
+func attachmentsXML(files []attachFile) string {
+	var b strings.Builder
+	for _, f := range files {
+		b.WriteString("<t:FileAttachment><t:Name>" + esc(f.Name) + "</t:Name><t:Content>" +
+			base64.StdEncoding.EncodeToString(f.Content) + "</t:Content></t:FileAttachment>")
+	}
+	return b.String()
+}
+
+type itemID struct {
+	ID        string `xml:"Id,attr"`
+	ChangeKey string `xml:"ChangeKey,attr"`
+}
+
+// Submit sends the message, or saves it in Drafts. With files, the message is first saved as a
+// draft, the files are attached to it and only then is it sent, which works for replies too.
 func (c *Client) Submit(ctx context.Context, d Draft) error {
+	files, err := readFiles(d.Files)
+	if err != nil {
+		return err
+	}
 	disposition := "SaveOnly"
-	if d.Send {
+	if d.Send && len(files) == 0 {
 		disposition = "SendAndSaveCopy"
 	}
 	recipients := func(tag string, addrs []string) string {
@@ -327,8 +375,45 @@ func (c *Client) Submit(ctx context.Context, d Draft) error {
 		item = fmt.Sprintf(`<t:Message><t:Subject>%s</t:Subject><t:Body BodyType="Text">%s</t:Body>%s%s</t:Message>`,
 			esc(d.Subject), esc(d.Body), recipients("ToRecipients", d.To), recipients("CcRecipients", d.Cc))
 	}
+	folder := "drafts"
+	if disposition == "SendAndSaveCopy" {
+		folder = "sentitems"
+	}
 	body := fmt.Sprintf(`<m:CreateItem MessageDisposition="%s"><m:SavedItemFolderId><t:DistinguishedFolderId Id="%s"/></m:SavedItemFolderId><m:Items>%s</m:Items></m:CreateItem>`,
-		disposition, map[bool]string{true: "sentitems", false: "drafts"}[d.Send], item)
+		disposition, folder, item)
+	var created struct {
+		Items []itemID `xml:"ResponseMessages>CreateItemResponseMessage>Items>Message>ItemId"`
+	}
+	if err := c.do(ctx, body, &created); err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		return nil
+	}
+	if len(created.Items) == 0 {
+		return errors.New("EWS did not return the draft to attach the files to")
+	}
+	id := created.Items[0]
+	body = fmt.Sprintf(`<m:CreateAttachment><m:ParentItemId Id="%s" ChangeKey="%s"/><m:Attachments>%s</m:Attachments></m:CreateAttachment>`,
+		esc(id.ID), esc(id.ChangeKey), attachmentsXML(files))
+	var attached struct {
+		Root []struct {
+			ID        string `xml:"RootItemId,attr"`
+			ChangeKey string `xml:"RootItemChangeKey,attr"`
+		} `xml:"ResponseMessages>CreateAttachmentResponseMessage>Attachments>FileAttachment>AttachmentId"`
+	}
+	if err := c.do(ctx, body, &attached); err != nil {
+		return err
+	}
+	if !d.Send {
+		return nil
+	}
+	// Attaching changes the draft, so sending needs its new change key.
+	if n := len(attached.Root); n > 0 && attached.Root[n-1].ChangeKey != "" {
+		id.ChangeKey = attached.Root[n-1].ChangeKey
+	}
+	body = fmt.Sprintf(`<m:SendItem SaveItemToFolder="true"><m:ItemIds><t:ItemId Id="%s" ChangeKey="%s"/></m:ItemIds><m:SavedItemFolderId><t:DistinguishedFolderId Id="sentitems"/></m:SavedItemFolderId></m:SendItem>`,
+		esc(id.ID), esc(id.ChangeKey))
 	var ignored struct{}
 	return c.do(ctx, body, &ignored)
 }

@@ -2,6 +2,8 @@ package ews
 
 import (
 	"encoding/xml"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -50,5 +52,41 @@ func TestCheckResponsesReportsErrors(t *testing.T) {
 func TestEscape(t *testing.T) {
 	if got := esc(`a<b & "c"`); got != "a&lt;b &amp; &#34;c&#34;" {
 		t.Errorf("esc = %q", got)
+	}
+}
+
+func TestAttachments(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "РГР1 & отчёт.pdf")
+	if err := os.WriteFile(p, []byte("%PDF-1.4"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	files, err := readFiles([]string{p})
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := attachmentsXML(files)
+	want := "<t:FileAttachment><t:Name>РГР1 &amp; отчёт.pdf</t:Name><t:Content>JVBERi0xLjQ=</t:Content></t:FileAttachment>"
+	if x != want {
+		t.Errorf("got %s", x)
+	}
+	if _, err := readFiles([]string{filepath.Join(dir, "нет такого")}); err == nil {
+		t.Error("missing file: want an error")
+	}
+}
+
+func TestParseCreateItemID(t *testing.T) {
+	resp := `<m:CreateItemResponse xmlns:m="http://schemas.microsoft.com/exchange/services/2006/messages" xmlns:t="http://schemas.microsoft.com/exchange/services/2006/types">
+<m:ResponseMessages><m:CreateItemResponseMessage ResponseClass="Success"><m:ResponseCode>NoError</m:ResponseCode>
+<m:Items><t:Message><t:ItemId Id="DRAFT1" ChangeKey="CK1"/></t:Message></m:Items>
+</m:CreateItemResponseMessage></m:ResponseMessages></m:CreateItemResponse>`
+	var created struct {
+		Items []itemID `xml:"ResponseMessages>CreateItemResponseMessage>Items>Message>ItemId"`
+	}
+	if err := xml.Unmarshal([]byte(resp), &created); err != nil {
+		t.Fatal(err)
+	}
+	if len(created.Items) != 1 || created.Items[0].ID != "DRAFT1" || created.Items[0].ChangeKey != "CK1" {
+		t.Errorf("got %+v", created.Items)
 	}
 }

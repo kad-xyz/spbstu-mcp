@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -37,6 +38,7 @@ type mailSendIn struct {
 	Body      string   `json:"body" jsonschema:"plain-text body"`
 	ReplyToID string   `json:"reply_to_id,omitempty" jsonschema:"id of the message to reply to; the original is quoted below the body"`
 	ReplyAll  bool     `json:"reply_all,omitempty" jsonschema:"reply to everyone on the original"`
+	Files     []string `json:"files,omitempty" jsonschema:"absolute paths of local files to attach (20 MB in total at most)"`
 	Send      bool     `json:"send,omitempty" jsonschema:"true sends the message; false (default) only saves it in Drafts"`
 }
 
@@ -90,15 +92,21 @@ func registerMail(s *mcp.Server, mail mailService, downloads string) {
 	mcp.AddTool(s, &mcp.Tool{Name: "mail_send",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(false), OpenWorldHint: ptr(true)},
 		Description: "Write a new message or a reply from the university mailbox. By default it is only saved in Drafts. " +
-			"Set send=true ONLY after showing the user the exact recipients, subject and body and getting their explicit confirmation."},
+			"Files can be attached. Set send=true ONLY after showing the user the exact recipients, subject, body and attached files and getting their explicit confirmation."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mailSendIn) (*mcp.CallToolResult, any, error) {
 			err := mail.Submit(ctx, ews.Draft{To: in.To, Cc: in.Cc, Subject: in.Subject, Body: in.Body,
-				ReplyToID: in.ReplyToID, ReplyAll: in.ReplyAll, Send: in.Send})
+				ReplyToID: in.ReplyToID, ReplyAll: in.ReplyAll, Files: in.Files, Send: in.Send})
 			if err != nil {
 				return nil, nil, err
 			}
 			msg := "Saved in Drafts."
-			if in.Send {
+			if len(in.Files) > 0 {
+				msg = fmt.Sprintf("Saved in Drafts with %d attachment(s).", len(in.Files))
+				if in.Send {
+					msg = fmt.Sprintf("Sent with %d attachment(s).", len(in.Files))
+				}
+			}
+			if in.Send && len(in.Files) == 0 {
 				msg = "Sent."
 			}
 			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: msg}}}, nil, nil
