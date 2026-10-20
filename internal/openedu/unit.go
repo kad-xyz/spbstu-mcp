@@ -40,6 +40,24 @@ var usageKeyRe = regexp.MustCompile(`block-v1:[^/?#"\s]+`)
 // (block-v1:…), a link containing one (an outline URL), the hex id at its end, or a part of a
 // subsection or page name; subsections and chapters expand into their pages.
 func (c *Client) Units(ctx context.Context, courseID, block string) ([]Unit, error) {
+	pages, err := c.pages(ctx, courseID, block)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]Unit, 0, len(pages))
+	for _, pg := range pages {
+		body, err := c.LMS(ctx, "/xblock/"+pg.ID)
+		if err != nil {
+			return nil, err
+		}
+		text, links := pageText(body)
+		out = append(out, Unit{Name: pg.Name, ID: pg.ID, Text: text, Links: links})
+	}
+	return out, nil
+}
+
+// pages resolves a course block to the pages (verticals) under it, at most maxUnits of them.
+func (c *Client) pages(ctx context.Context, courseID, block string) ([]courseBlock, error) {
 	blocks, err := c.courseBlocks(ctx, courseID)
 	if err != nil {
 		return nil, err
@@ -70,16 +88,7 @@ func (c *Client) Units(ctx context.Context, courseID, block string) ([]Unit, err
 	if len(pages) > maxUnits {
 		return nil, fmt.Errorf("%q has %d pages; ask for one subsection (at most %d pages)", b.Name, len(pages), maxUnits)
 	}
-	out := make([]Unit, 0, len(pages))
-	for _, pg := range pages {
-		body, err := c.LMS(ctx, "/xblock/"+pg.ID)
-		if err != nil {
-			return nil, err
-		}
-		text, links := pageText(body)
-		out = append(out, Unit{Name: pg.Name, ID: pg.ID, Text: text, Links: links})
-	}
-	return out, nil
+	return pages, nil
 }
 
 func (c *Client) courseBlocks(ctx context.Context, courseID string) (map[string]courseBlock, error) {

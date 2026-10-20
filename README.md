@@ -223,7 +223,7 @@ Then just ask: *"What's going on with my studies?"*
 </details>
 
 <details>
-<summary><b>openedu.ru</b>: 5 tools</summary>
+<summary><b>openedu.ru</b>: 7 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -232,6 +232,8 @@ Then just ask: *"What's going on with my studies?"*
 | `openedu_dates` | Course start, end and due dates. |
 | `openedu_outline` | Chapters and subsections with completion and links. |
 | `openedu_unit` | Text and links of course pages: a page or a whole subsection (lab descriptions, notes, attached files). Takes a link, a block id or part of a name. |
+| `openedu_problems` | Questions of a test or exercise page: question text (tables and pictures included), input names, choices, saved answers and their status, score and attempts. |
+| `openedu_answer` ✍️ | Saves the user's answers to a question, or with `submit` checks them for a score (spends one attempt). Confirm with the user first. |
 
 </details>
 

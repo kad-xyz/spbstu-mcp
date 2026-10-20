@@ -38,7 +38,7 @@ func main() {
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id from dl_course_contents, not its cmid. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
-			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline). schedule reads the public timetable. my_* tools read my.spbstu.ru: grades (record book), study and work plans, debts. For one discipline use study_subject.",
+			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline, page text); openedu_problems reads a test's questions and openedu_answer saves or submits the user's answers (submitting spends an attempt). schedule reads the public timetable. my_* tools read my.spbstu.ru: grades (record book), study and work plans, debts. For one discipline use study_subject.",
 	})
 	var (
 		dlSvc   dlService      = dl

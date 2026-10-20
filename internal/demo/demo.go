@@ -244,3 +244,29 @@ func (OpenEdu) Units(context.Context, string, string) ([]openedu.Unit, error) {
 func (OpenEdu) Outline(context.Context, string) ([]openedu.Chapter, error) {
 	return []openedu.Chapter{{Name: "Неделя 5. Транзакции", Items: []openedu.OutlineItem{{Name: "Неделя 5. Тест", Due: stamp(at(6, 23, 59))}}}}, nil
 }
+
+func demoProblem() openedu.Problem {
+	return openedu.Problem{ID: "block-v1:spbstu+DATAM+demo+type@problem+block@q51", Unit: "Неделя 5. Тест", Title: "Вопрос 5.1",
+		Score: "0/1", Attempts: "0/2", Graded: true,
+		Inputs: []openedu.Input{{Name: "input_q51_2_1", Type: "radio", Status: "unanswered",
+			Prompt: "Какое свойство транзакции гарантирует, что после фиксации её результат не потеряется?",
+			Choices: []openedu.Choice{{Value: "choice_0", Label: "Атомарность"}, {Value: "choice_1", Label: "Изолированность"},
+				{Value: "choice_2", Label: "Долговечность"}}}}}
+}
+
+func (OpenEdu) Problems(context.Context, string, string) ([]openedu.Problem, error) {
+	return []openedu.Problem{demoProblem()}, nil
+}
+
+func (OpenEdu) Answer(_ context.Context, _, _ string, answers map[string][]string, submit bool) (*openedu.Problem, error) {
+	p := demoProblem()
+	p.Inputs[0].Answer = answers["input_q51_2_1"]
+	p.Inputs[0].Status = "unsubmitted"
+	if submit {
+		p.Attempts, p.Inputs[0].Status = "1/2", "incorrect"
+		if len(p.Inputs[0].Answer) == 1 && p.Inputs[0].Answer[0] == "choice_2" {
+			p.Score, p.Inputs[0].Status = "1/1", "correct"
+		}
+	}
+	return &p, nil
+}

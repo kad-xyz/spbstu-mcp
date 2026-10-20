@@ -54,6 +54,8 @@ type openeduService interface {
 	Dates(ctx context.Context, courseID string) ([]openedu.Date, error)
 	Outline(ctx context.Context, courseID string) ([]openedu.Chapter, error)
 	Units(ctx context.Context, courseID, block string) ([]openedu.Unit, error)
+	Problems(ctx context.Context, courseID, block string) ([]openedu.Problem, error)
+	Answer(ctx context.Context, courseID, problem string, answers map[string][]string, submit bool) (*openedu.Problem, error)
 }
 
 type myService interface {
