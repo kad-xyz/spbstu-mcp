@@ -47,6 +47,7 @@ https://github.com/user-attachments/assets/79137c69-5d3f-4270-9164-e509f88c3535
 | 🗓 | **ruz.spbstu.ru**, the public timetable | weekly timetable of any group or teacher | |
 | 🧭 | **Everything at once** | `study_overview`: dl deadlines, openedu.ru progress and unread mail in one call | |
 | 🏛 | **my.spbstu.ru**, «Мой Политех» | record book grades with semester averages, study plan, this year's work plan | |
+| 🔎 | **polyvsp.ru, polyphis.ru**, student answer bases | answers to test questions, with the source page | |
 
 ## Quick start
 
@@ -239,6 +240,18 @@ Then just ask: *"What's going on with my studies?"*
 
 ✍️ *changes something on a university service; see [Security and privacy](#security-and-privacy).*
 
+<details>
+<summary><b>Answer bases</b>: 2 tools</summary>
+
+| Tool | Description |
+|---|---|
+| `answers_subjects` | Courses of polyvsp.ru and polyphis.ru, filtered by part of the name. |
+| `answers_search` | Looks questions up on the chosen course pages: up to three close entries per question with the answer, source link and a 0..1 score; `found` when it is the same question. |
+
+With a link to an openedu.ru test, the model looks every question up, saves the answers without submitting them and reports each question as ✅ from the base, 🟡 from the base but doubtful (the base answer is kept anyway) or ⚠️ not in the base, to be checked.
+
+</details>
+
 ## How it works
 
 ```mermaid
@@ -257,6 +270,7 @@ flowchart LR
 - **openedu.ru**: signs in through the «Политех» identity provider of the openedu.ru SSO, then reads the Open edX course APIs.
 - **Mail**: Exchange Web Services with the same account.
 - **my.spbstu.ru**: its own sign-in form, then the JSON endpoints its pages use.
+- **Answer bases**: public pages, cached for a week in `~/.config/spbstu-mcp/answers`; when polyvsp.ru is down its web.archive.org copy is read.
 - **Sessions** (the Moodle token and cookies) are kept between runs, so the server signs in again only when a session has expired. University sites lock accounts after frequent sign-ins.
 
 ## Security and privacy
@@ -264,7 +278,7 @@ flowchart LR
 - 🔑 **The password never leaves your Mac except to SPbPU and openedu.ru sign-in pages.** It is read from the credential store at sign-in time and never appears in tool results.
 - 🗂 **Sessions** are stored in `~/.config/spbstu-mcp/state.json`, readable only by you. Delete the file to sign out everywhere.
 - ✋ **Writes need your confirmation.** The descriptions of `dl_submit_assignment`, `dl_forum_*` and `mail_send` tell the model to act only after you have confirmed exactly what goes where. `mail_send` only saves a draft unless asked to send.
-- 🚫 **No exams.** The server cannot take graded tests or proctored exams, and is not meant to.
+- 🚫 **No exams.** Timed and proctored exams open only in the browser. Test answers are only saved; submitting them is up to you.
 
 > [!WARNING]
 > This is an unofficial project, not affiliated with SPbPU or openedu.ru. Use it with your own account only.
@@ -304,6 +318,7 @@ internal/ews       Exchange Web Services client
 internal/openedu   openedu.ru and Open edX client
 internal/mypoly    my.spbstu.ru client
 internal/ruz       public timetable client
+internal/answers   polyvsp.ru and polyphis.ru answer bases
 internal/keychain  credential stores: macOS keychain, Secret Service, Windows Credential Manager
 internal/state     persisted sessions and cookie jar
 ```
