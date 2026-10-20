@@ -53,6 +53,7 @@ type openeduService interface {
 	Progress(ctx context.Context, courseID string) (*openedu.Progress, error)
 	Dates(ctx context.Context, courseID string) ([]openedu.Date, error)
 	Outline(ctx context.Context, courseID string) ([]openedu.Chapter, error)
+	Units(ctx context.Context, courseID, block string) ([]openedu.Unit, error)
 }
 
 type myService interface {

@@ -75,19 +75,30 @@ func (c *Client) Page(ctx context.Context, path string) ([]byte, error) {
 // API decodes a JSON response of the LMS. When the short-lived JWT cookie has expired it is
 // refreshed from the LMS session, and only when that has lapsed too does it sign in again.
 func (c *Client) API(ctx context.Context, path string, out any) error {
+	body, err := c.LMS(ctx, path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(body, out)
+}
+
+// LMS returns the body of an LMS page or API response, with the same session handling as API.
+// A page that redirects away from the LMS (to the SSO login) counts as unauthorized.
+func (c *Client) LMS(ctx context.Context, path string) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.init()
 	var signInErr error
 	for attempt := 0; ; attempt++ {
-		body, status, _, err := c.fetch(ctx, LMSURL+path)
+		body, status, final, err := c.fetch(ctx, LMSURL+path)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if status == http.StatusOK {
-			return json.Unmarshal(body, out)
+		left := final.Host != "courses.openedu.ru"
+		if status == http.StatusOK && !left {
+			return body, nil
 		}
-		unauthorized := status == http.StatusUnauthorized || status == http.StatusForbidden
+		unauthorized := status == http.StatusUnauthorized || status == http.StatusForbidden || left
 		switch {
 		case unauthorized && attempt == 0:
 			c.refreshJWT(ctx)
@@ -96,9 +107,9 @@ func (c *Client) API(ctx context.Context, path string, out any) error {
 			// established, so the retry decides, not the error.
 			signInErr = c.signIn(ctx, lmsLogin, "courses.openedu.ru")
 		case signInErr != nil:
-			return signInErr
+			return nil, signInErr
 		default:
-			return fmt.Errorf("courses.openedu.ru%s: HTTP %d: %.200s", path, status, body)
+			return nil, fmt.Errorf("courses.openedu.ru%s: HTTP %d: %.200s", path, status, body)
 		}
 	}
 }

@@ -235,6 +235,12 @@ func (OpenEdu) Dates(context.Context, string) ([]openedu.Date, error) {
 	return []openedu.Date{{Date: stamp(at(6, 23, 59)), Title: "Неделя 5. Тест", Type: "Homework"}}, nil
 }
 
+func (OpenEdu) Units(context.Context, string, string) ([]openedu.Unit, error) {
+	return []openedu.Unit{{Name: "Неделя 5. Лабораторная SQL Server", ID: "block-v1:spbstu+DATAM+demo+type@vertical+block@lab5",
+		Text:  "ЛАБОРАТОРНАЯ РАБОТА ПЯТОЙ НЕДЕЛИ\nОсновы управления транзакциями в SQL Server.\nОписание работы.",
+		Links: []openedu.UnitLink{{Text: "Описание работы", URL: "https://cdn2.openedu.ru/assets/demo/lab5.pdf"}}}}, nil
+}
+
 func (OpenEdu) Outline(context.Context, string) ([]openedu.Chapter, error) {
 	return []openedu.Chapter{{Name: "Неделя 5. Транзакции", Items: []openedu.OutlineItem{{Name: "Неделя 5. Тест", Due: stamp(at(6, 23, 59))}}}}, nil
 }

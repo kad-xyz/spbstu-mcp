@@ -43,7 +43,7 @@ https://github.com/user-attachments/assets/79137c69-5d3f-4270-9164-e509f88c3535
 |---|---|---|---|
 | 🎓 | **dl.spbstu.ru**, the Moodle LMS | courses, course contents, assignments with full task text, deadlines, submission status and feedback, grades, forums, pages, files | submit work to an assignment, post to forums with attachments |
 | ✉️ | **mail.spbstu.ru**, Exchange | list and search mail, read messages, save attachments | write new messages and replies (saved as drafts by default), delete |
-| 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline | |
+| 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline, page text and attached files | |
 | 🗓 | **ruz.spbstu.ru**, the public timetable | weekly timetable of any group or teacher | |
 | 🧭 | **Everything at once** | `study_overview`: dl deadlines, openedu.ru progress and unread mail in one call | |
 | 🏛 | **my.spbstu.ru**, «Мой Политех» | record book grades with semester averages, study plan, this year's work plan | |
@@ -223,7 +223,7 @@ Then just ask: *"What's going on with my studies?"*
 </details>
 
 <details>
-<summary><b>openedu.ru</b>: 4 tools</summary>
+<summary><b>openedu.ru</b>: 5 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -231,6 +231,7 @@ Then just ask: *"What's going on with my studies?"*
 | `openedu_progress` | Completed units, current grade, grading policy, score of every subsection. |
 | `openedu_dates` | Course start, end and due dates. |
 | `openedu_outline` | Chapters and subsections with completion and links. |
+| `openedu_unit` | Text and links of course pages: a page or a whole subsection (lab descriptions, notes, attached files). Takes a link, a block id or part of a name. |
 
 </details>
 
