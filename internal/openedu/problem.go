@@ -87,11 +87,18 @@ func (c *Client) Answer(ctx context.Context, courseID, problem string, answers m
 	if err != nil {
 		return nil, err
 	}
+	handler := strings.TrimPrefix(ps[0].url, LMSURL)
 	action := "/problem_save"
 	if submit {
 		action = "/problem_check"
+		// A wrong answer locks the problem until it is reset; resetting spends no attempt.
+		if needsReset(ps[0].Inputs) {
+			if err := c.resetProblem(ctx, handler); err != nil {
+				return nil, err
+			}
+		}
 	}
-	raw, err := c.PostLMS(ctx, strings.TrimPrefix(ps[0].url, LMSURL)+action, form)
+	raw, err := c.PostLMS(ctx, handler+action, form)
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +129,33 @@ func (c *Client) Answer(ctx context.Context, courseID, problem string, answers m
 		p.Notice = textOf(resp.Msg)
 	}
 	return &p, nil
+}
+
+func needsReset(inputs []Input) bool {
+	for _, in := range inputs {
+		if in.Status == "incorrect" || in.Status == "partially-correct" {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Client) resetProblem(ctx context.Context, handler string) error {
+	raw, err := c.PostLMS(ctx, handler+"/problem_reset", url.Values{})
+	if err != nil {
+		return err
+	}
+	var resp struct {
+		Success any    `json:"success"`
+		Msg     string `json:"msg"`
+	}
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return fmt.Errorf("unexpected reset response: %.200s", raw)
+	}
+	if ok, isBool := resp.Success.(bool); isBool && !ok {
+		return fmt.Errorf("not reset: %s", textOf(resp.Msg))
+	}
+	return nil
 }
 
 func findProblem(blocks map[string]courseBlock, ref string) (courseBlock, error) {
@@ -308,7 +342,14 @@ func parseContent(p *Problem, content string) {
 					}
 				}
 				if x.Data == "label" && attr(x, "for") != "" {
-					labels[attr(x, "for")] = collapse(nodeText(x))
+					// A choice may be a picture, so its label keeps the image links.
+					label := collapse(nodeText(x))
+					for img := range x.Descendants() {
+						if img.Type == html.ElementNode && img.Data == "img" && attr(img, "src") != "" {
+							label = strings.TrimSpace(label + " [изображение: " + absURL(attr(img, "src")) + "]")
+						}
+					}
+					labels[attr(x, "for")] = label
 				}
 			}
 			for i := range in.Choices {
@@ -321,12 +362,7 @@ func parseContent(p *Problem, content string) {
 		case n.Data == "img":
 			// Pictures (diagrams, tables as images) are part of the question.
 			if src := attr(n, "src"); src != "" {
-				if u, err := url.Parse(LMSURL + "/"); err == nil {
-					if abs, err := u.Parse(src); err == nil {
-						src = abs.String()
-					}
-				}
-				prompt.WriteString(" [изображение: " + src + "] ")
+				prompt.WriteString(" [изображение: " + absURL(src) + "] ")
 			}
 		case n.Data == "table":
 			// Table rows stay on one line, cells separated by bars.
@@ -346,6 +382,16 @@ func parseContent(p *Problem, content string) {
 		}
 	}
 	walk(doc)
+}
+
+// absURL resolves a link of the course markup against the LMS.
+func absURL(src string) string {
+	if u, err := url.Parse(LMSURL + "/"); err == nil {
+		if abs, err := u.Parse(src); err == nil {
+			return abs.String()
+		}
+	}
+	return src
 }
 
 // statusOf reads the state of an answer from the class of its status span.

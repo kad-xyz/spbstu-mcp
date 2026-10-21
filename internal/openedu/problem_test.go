@@ -19,6 +19,7 @@ const problemContent = `<h3 class="hd hd-3 problem-header">Вопрос 1</h3>
 <div class="choicegroup capa_inputtype"><fieldset><legend>Отметьте ключи</legend>
 <input type="checkbox" name="input_x_3_1[]" id="c0" value="choice_0"/><label for="c0">A</label>
 <input type="checkbox" name="input_x_3_1[]" id="c1" value="choice_1"/><label for="c1">B</label>
+<input type="checkbox" name="input_x_3_1[]" id="c2" value="choice_2"/><label for="c2"><img src="/asset-v1:x+type@asset+block@er.png"/></label>
 </fieldset><span class="status unanswered"></span></div>
 <p>Подъязык команды <img src="/asset-v1:x+type@asset+block@drop.png"/></p>
 <select name="input_x_4_1"><option value="option_x_4_1_dummy_default">Выберите опцию</option><option value="DDL" selected="true"> DDL</option><option value="DML">DML</option></select>
@@ -40,13 +41,17 @@ func TestParseProblems(t *testing.T) {
 	want := []Input{
 		{Name: "input_x_2_1", Type: "radio", Prompt: "Дано отношение:\nR | A | B |\n| 1 | 2 |\nСколько в нём кортежей?",
 			Choices: []Choice{{"choice_0", "Один"}, {"choice_1", "Два"}}, Answer: []string{"choice_1"}, Status: "incorrect"},
-		{Name: "input_x_3_1", Type: "checkbox", Prompt: "Отметьте ключи", Choices: []Choice{{"choice_0", "A"}, {"choice_1", "B"}}, Status: "unanswered"},
+		{Name: "input_x_3_1", Type: "checkbox", Prompt: "Отметьте ключи", Choices: []Choice{{"choice_0", "A"}, {"choice_1", "B"}, {"choice_2", "[изображение: " + LMSURL + "/asset-v1:x+type@asset+block@er.png]"}}, Status: "unanswered"},
 		{Name: "input_x_4_1", Type: "select", Prompt: "Подъязык команды [изображение: " + LMSURL + "/asset-v1:x+type@asset+block@drop.png]",
 			Choices: []Choice{{"DDL", "DDL"}, {"DML", "DML"}}, Answer: []string{"DDL"}},
 		{Name: "input_x_5_1", Type: "text", Prompt: "Название операции"},
 	}
 	if !reflect.DeepEqual(p.Inputs, want) {
 		t.Errorf("inputs:\n%+v\nwant\n%+v", p.Inputs, want)
+	}
+
+	if !needsReset(p.Inputs) || needsReset(p.Inputs[1:]) {
+		t.Error("needsReset: want true only with an incorrect input")
 	}
 
 	form, err := answerForm(p.Inputs, map[string][]string{"input_x_3_1": {"choice_0", "choice_1"}, "input_x_5_1": {"объединение"}})

@@ -93,7 +93,7 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 	mcp.AddTool(s, &mcp.Tool{Name: "openedu_answer",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true), OpenWorldHint: ptr(true)},
 		Description: "Answer an openedu.ru question with the user's answers: saves them, or with submit checks them for a score, " +
-			"spending one of the limited attempts. Returns the question with the stored answers, status and score." + confirmFirst},
+			"spending one of the limited attempts (a wrongly answered question is reset first, which spends none). Returns the question with the stored answers, status and score." + confirmFirst},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in oeAnswerIn) (*mcp.CallToolResult, any, error) {
 			v, err := oe.Answer(ctx, in.CourseID, in.ProblemID, in.Answers, in.Submit)
 			if err != nil {
