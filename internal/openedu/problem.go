@@ -73,7 +73,12 @@ func (c *Client) Answer(ctx context.Context, courseID, problem string, answers m
 	}
 	b, err := findProblem(blocks, problem)
 	if err != nil {
-		return nil, err
+		// Exam questions are missing from the blocks API, so a full usage key is taken as is.
+		key := usageKeyRe.FindString(problem)
+		if !strings.Contains(key, "type@problem+") {
+			return nil, err
+		}
+		b = courseBlock{ID: key, Type: "problem"}
 	}
 	body, err := c.LMS(ctx, "/xblock/"+b.ID)
 	if err != nil {
@@ -111,7 +116,8 @@ func (c *Client) Answer(ctx context.Context, courseID, problem string, answers m
 		return nil, fmt.Errorf("unexpected answer response: %.200s", raw)
 	}
 	// problem_check reports a refusal (no attempts left, past due) in success itself.
-	if s, ok := resp.Success.(string); ok && submit && s != "correct" && s != "incorrect" && s != "partially-correct" {
+	// Exams hide the result and report "submitted".
+	if s, ok := resp.Success.(string); ok && submit && s != "correct" && s != "incorrect" && s != "partially-correct" && s != "submitted" {
 		return nil, fmt.Errorf("not accepted: %s", s)
 	}
 	if ok, isBool := resp.Success.(bool); isBool && !ok {
@@ -434,17 +440,16 @@ func textOf(s string) string {
 // PostLMS posts a form to an LMS handler the way the courseware page does, with the session's
 // CSRF token, and returns the response body.
 func (c *Client) PostLMS(ctx context.Context, path string, form url.Values) ([]byte, error) {
+	return c.formLMS(ctx, http.MethodPost, path, form)
+}
+
+// formLMS sends a form to the LMS with the given method, as PostLMS does.
+func (c *Client) formLMS(ctx context.Context, method, path string, form url.Values) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.init()
-	lms, _ := url.Parse(LMSURL)
-	csrf := ""
-	for _, ck := range c.client.Jar.Cookies(lms) {
-		if ck.Name == "csrftoken" {
-			csrf = ck.Value
-		}
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, LMSURL+path, strings.NewReader(form.Encode()))
+	csrf := c.csrfToken(ctx)
+	req, err := http.NewRequestWithContext(ctx, method, LMSURL+path, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -452,6 +457,7 @@ func (c *Client) PostLMS(ctx context.Context, path string, form url.Values) ([]b
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-CSRFToken", csrf)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("USE-JWT-COOKIE", "true")
 	req.Header.Set("Referer", LMSURL+"/")
 	resp, err := c.client.Do(req)
 	if err != nil {

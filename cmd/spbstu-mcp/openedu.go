@@ -22,6 +22,12 @@ type oeAnswerIn struct {
 	Submit    bool                `json:"submit,omitempty" jsonschema:"check the answers for a score, which uses up one of the limited attempts; default only saves them"`
 }
 
+type oeExamIn struct {
+	CourseID string `json:"course_id" jsonschema:"course id from openedu_courses"`
+	Exam     string `json:"exam" jsonschema:"exam subsection: a link from openedu_outline, a block-v1:… usage key, its hex id, or a unique part of its name, e.g. Промежуточный экзамен"`
+	Start    bool   `json:"start,omitempty" jsonschema:"start the exam if it is not started yet; its clock then runs out for good"`
+}
+
 type oeCourseIn struct {
 	CourseID string `json:"course_id" jsonschema:"course id from openedu_courses, e.g. course-v1:spbstu+DATAM+fall_2026_spring_2027"`
 }
@@ -81,7 +87,7 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 
 	mcp.AddTool(s, &mcp.Tool{Name: "openedu_problems", Annotations: readOnly,
 		Description: "Questions on openedu.ru course pages (tests, exercises) of one page or a whole subsection: the question text, " +
-			"input names and choices, the saved answers with their status, score and attempts used. Timed exams open only in the browser."},
+			"input names and choices, the saved answers with their status, score and attempts used. Timed exams are read with openedu_exam."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in oeUnitIn) (*mcp.CallToolResult, any, error) {
 			v, err := oe.Problems(ctx, in.CourseID, in.Block)
 			if err != nil {
@@ -96,6 +102,31 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 			"spending one of the limited attempts (a wrongly answered question is reset first, which spends none). Returns the question with the stored answers, status and score." + confirmFirst},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in oeAnswerIn) (*mcp.CallToolResult, any, error) {
 			v, err := oe.Answer(ctx, in.CourseID, in.ProblemID, in.Answers, in.Submit)
+			if err != nil {
+				return nil, nil, err
+			}
+			return result(v)
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "openedu_exam",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true), OpenWorldHint: ptr(true)},
+		Description: "A timed openedu.ru exam: its time limit, due date and the state of the user's attempt; while the attempt runs, " +
+			"the minutes left and its questions in the form of openedu_problems, answered with openedu_answer (an exam hides the score until it closes, " +
+			"so check the result with openedu_progress). With start, an exam not yet started is started: its clock cannot be stopped. " +
+			"Start only after the user has explicitly confirmed it."},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in oeExamIn) (*mcp.CallToolResult, any, error) {
+			v, err := oe.Exam(ctx, in.CourseID, in.Exam, in.Start)
+			if err != nil {
+				return nil, nil, err
+			}
+			return result(v)
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "openedu_exam_finish",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true), OpenWorldHint: ptr(true)},
+		Description: "Finish the running attempt of a timed openedu.ru exam, as its «Завершить экзамен» button does: answers can no longer be changed." + confirmFirst},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in oeExamIn) (*mcp.CallToolResult, any, error) {
+			v, err := oe.FinishExam(ctx, in.CourseID, in.Exam)
 			if err != nil {
 				return nil, nil, err
 			}

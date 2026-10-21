@@ -68,3 +68,15 @@ func TestParseProblems(t *testing.T) {
 		}
 	}
 }
+
+func TestQuestionsSuffix(t *testing.T) {
+	for in, want := range map[string]string{
+		"Промежуточный экзамен (20 Questions)": "Промежуточный экзамен",
+		"Неделя 1. Тест (1 Question)":          "Неделя 1. Тест",
+		"Итоговый экзамен":                     "Итоговый экзамен",
+	} {
+		if got := questionsRe.ReplaceAllString(in, ""); got != want {
+			t.Errorf("%q → %q, want %q", in, got, want)
+		}
+	}
+}

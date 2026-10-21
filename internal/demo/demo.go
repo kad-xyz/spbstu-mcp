@@ -270,3 +270,27 @@ func (OpenEdu) Answer(_ context.Context, _, _ string, answers map[string][]strin
 	}
 	return &p, nil
 }
+
+func demoExam(status string) *openedu.Exam {
+	return &openedu.Exam{ID: 1, Name: "Промежуточный экзамен", Type: "timed", TimeLimit: "45 мин.", Due: stamp(at(30, 23, 59)), Status: status}
+}
+
+func (OpenEdu) Exam(_ context.Context, _, _ string, start bool) (*openedu.Exam, error) {
+	if !start {
+		e := demoExam("not started")
+		e.Notice = "starting runs the clock for 45 мин. and cannot be undone"
+		return e, nil
+	}
+	e := demoExam("started")
+	e.AttemptID, e.MinutesLeft = 1, 45
+	p := demoProblem()
+	p.Unit = "Промежуточный экзамен"
+	e.Problems = []openedu.Problem{p}
+	return e, nil
+}
+
+func (OpenEdu) FinishExam(context.Context, string, string) (*openedu.Exam, error) {
+	e := demoExam("submitted")
+	e.AttemptID = 1
+	return e, nil
+}
