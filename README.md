@@ -29,6 +29,7 @@ https://github.com/user-attachments/assets/79137c69-5d3f-4270-9164-e509f88c3535
 
 - [What it does](#what-it-does)
 - [Quick start](#quick-start)
+- [Several accounts](#several-accounts)
 - [Tools](#tools)
 - [How it works](#how-it-works)
 - [Security and privacy](#security-and-privacy)
@@ -143,9 +144,38 @@ Then just ask: *"What's going on with my studies?"*
 > **No account at hand?** Start the server with `-demo` (`claude mcp add spbstu-demo -- spbstu-mcp -demo`): it serves a
 > made-up student's courses, deadlines and mail, touches no university service and needs no credentials.
 
+## Several accounts
+
+The server can keep more than one university account, say yours and a classmate's you are helping, and acts as one of
+them at a time, the **active** one. Ask *"add the account ivanov.ii"*: on macOS a system dialog asks for its password
+(paste it from the Passwords app), which goes straight to the keychain, never through the chat, and one sign-in checks
+it. Then *"switch to ivanov.ii"*, and back when you are done.
+
+- Every reply starts with `Аккаунт: LOGIN@edu.spbstu.ru`, the account it was made as.
+- Every account has its own sessions, so one person's sign-in never serves another.
+- Tools marked ✍️ take an `account` argument and refuse to run unless it is the active account: a mail cannot go out
+  from a classmate's mailbox because the switch back was forgotten.
+- The active account is remembered after a restart.
+
+On Linux and Windows `account_add` returns the `secret-tool` or `cmdkey` command that stores the password; run it, then
+call `account_add` again. The accounts live under the same credential store service, one item per account (on Windows,
+an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
+
 ## Tools
 
 <details open>
+<summary><b>Accounts</b>: 4 tools</summary>
+
+| Tool | Description |
+|---|---|
+| `account_list` | Added accounts and which one is active. |
+| `account_switch` | Make another added account the active one. |
+| `account_add` | Add an account: its password is typed into a system dialog (macOS), then checked with one sign-in. |
+| `account_remove` | Remove an account that is not active: its password and saved sessions. |
+
+</details>
+
+<details>
 <summary><b>Across services</b>: 3 tools</summary>
 
 | Tool | Description |
@@ -195,8 +225,8 @@ Then just ask: *"What's going on with my studies?"*
 | `mail_send` ✍️ | New message or reply, with file attachments (up to 20 MB). Saves a draft unless `send` is true. |
 | `mail_delete` ✍️ | Move a message or draft to Deleted Items (restorable). |
 | `mail_folders` | Mail folders with total and unread counts. |
-| `mail_move` | Move messages to another folder. |
-| `mail_mark` | Mark messages read or unread. |
+| `mail_move` ✍️ | Move messages to another folder. |
+| `mail_mark` ✍️ | Mark messages read or unread. |
 | `mail_calendar` | Events of the mailbox calendar: meetings, webinars, consultations. |
 
 </details>
@@ -265,7 +295,7 @@ flowchart LR
     S -- SSO --> KC[sso.openedu.ru<br/>«Политех» provider] --> CAS
     KC --> OE[courses.openedu.ru<br/>Open edX API]
     S -- EWS, Basic auth over TLS --> M[mail.spbstu.ru<br/>Exchange]
-    S <-. sessions .-> ST[(~/.config/spbstu-mcp<br/>state.json, 0600)]
+    S <-. sessions .-> ST[(~/.config/spbstu-mcp/accounts<br/>one state.json per account, 0600)]
 ```
 
 - **dl.spbstu.ru**: signs in through the university SSO and obtains a Moodle mobile web service token, the same way the official Moodle app does.
@@ -278,7 +308,8 @@ flowchart LR
 ## Security and privacy
 
 - 🔑 **The password never leaves your Mac except to SPbPU and openedu.ru sign-in pages.** It is read from the credential store at sign-in time and never appears in tool results.
-- 🗂 **Sessions** are stored in `~/.config/spbstu-mcp/state.json`, readable only by you. Delete the file to sign out everywhere.
+- 🗂 **Sessions** are stored in `~/.config/spbstu-mcp/accounts/LOGIN@edu.spbstu.ru/state.json`, one file per account, readable only by you. Delete a file to sign that account out everywhere.
+- 👥 **Accounts don't mix.** Every write tool refuses to run unless its `account` argument is the active account; see [Several accounts](#several-accounts).
 - ✋ **Writes need your confirmation.** The descriptions of `dl_submit_assignment`, `dl_forum_*` and `mail_send` tell the model to act only after you have confirmed exactly what goes where. `mail_send` only saves a draft unless asked to send.
 - 🚫 **No exams.** Timed and proctored exams open only in the browser. Test answers are only saved; submitting them is up to you.
 
@@ -289,7 +320,7 @@ flowchart LR
 
 | Flag | Default | Description |
 |---|---|---|
-| `-keychain-service` | `spbstu` | Name of the credential store item with the university login. |
+| `-keychain-service` | `spbstu` | Name of the credential store service with the university logins, one item per account. |
 | `-downloads` | `~/Downloads/spbstu` | Where downloaded files and attachments are saved. |
 | `-group` | | Default group for `schedule`, e.g. `5130902/30201`. |
 | `-demo` | `false` | Serve made-up data instead of the university services; no credentials needed. |
@@ -301,6 +332,7 @@ flowchart LR
 | `keychain item "spbstu" not found` (or `Secret Service item`, `credential`) | Create it, see [Quick start](#quick-start). |
 | `CAS rejected the credentials` | Check the stored password length; re-create the item with `-w` last. |
 | `mail.spbstu.ru rejected the credentials` | The keychain account must be the full address, `LOGIN@edu.spbstu.ru`. |
+| `refused: account is …, but the active account is …` | A write was asked as another account. Switch with `account_switch` if that is what you meant. |
 | Sign-in keeps failing after many attempts | The site may have locked sign-ins for a while. Wait, then try once. |
 | macOS: *"cannot be opened because the developer cannot be verified"* | `xattr -d com.apple.quarantine ~/.local/bin/spbstu-mcp` |
 
@@ -313,7 +345,8 @@ go build -o bin/spbstu-mcp ./cmd/spbstu-mcp
 ```
 
 ```
-cmd/spbstu-mcp     MCP tools (dl, mail, openedu, overview)
+cmd/spbstu-mcp     MCP tools (dl, mail, openedu, overview, accounts)
+internal/accounts  added accounts, the active one, per-account session stores
 internal/cas       university SSO sign-in
 internal/moodle    dl.spbstu.ru client
 internal/ews       Exchange Web Services client

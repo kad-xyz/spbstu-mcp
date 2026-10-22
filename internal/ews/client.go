@@ -24,6 +24,8 @@ const Endpoint = "https://mail.spbstu.ru/EWS/Exchange.asmx"
 // keeps no session, so there is nothing to sign in to.
 type Client struct {
 	KeychainService string
+	// KeychainAccount picks the account of the service to sign in with; "" takes the first one.
+	KeychainAccount string
 }
 
 const envelope = `<?xml version="1.0" encoding="utf-8"?>
@@ -35,7 +37,7 @@ const envelope = `<?xml version="1.0" encoding="utf-8"?>
 
 // do posts a SOAP body and decodes the response body element into out.
 func (c *Client) do(ctx context.Context, body string, out any) error {
-	creds, err := keychain.Load(c.KeychainService)
+	creds, err := keychain.Load(c.KeychainService, c.KeychainAccount)
 	if err != nil {
 		return err
 	}

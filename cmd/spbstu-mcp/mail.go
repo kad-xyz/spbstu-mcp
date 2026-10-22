@@ -28,10 +28,12 @@ type mailAttachmentIn struct {
 }
 
 type mailDeleteIn struct {
-	ID string `json:"id" jsonschema:"message id from mail_list"`
+	Account string `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
+	ID      string `json:"id" jsonschema:"message id from mail_list"`
 }
 
 type mailSendIn struct {
+	Account   string   `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
 	To        []string `json:"to,omitempty" jsonschema:"recipient addresses; for a reply, defaults to the original sender"`
 	Cc        []string `json:"cc,omitempty" jsonschema:"copy addresses"`
 	Subject   string   `json:"subject,omitempty" jsonschema:"subject; for a reply, defaults to RE: of the original"`
@@ -94,6 +96,9 @@ func registerMail(s *mcp.Server, mail mailService, downloads string) {
 		Description: "Write a new message or a reply from the university mailbox. By default it is only saved in Drafts. " +
 			"Files can be attached. Set send=true ONLY after showing the user the exact recipients, subject, body and attached files and getting their explicit confirmation."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mailSendIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
 			err := mail.Submit(ctx, ews.Draft{To: in.To, Cc: in.Cc, Subject: in.Subject, Body: in.Body,
 				ReplyToID: in.ReplyToID, ReplyAll: in.ReplyAll, Files: in.Files, Send: in.Send})
 			if err != nil {
@@ -120,6 +125,9 @@ func registerMailDelete(s *mcp.Server, mail mailService) {
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true)},
 		Description: "Move a message (or a draft) to Deleted Items; it can be restored from there. Only after the user's confirmation."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mailDeleteIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
 			if err := mail.Delete(ctx, in.ID); err != nil {
 				return nil, nil, err
 			}

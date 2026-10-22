@@ -16,6 +16,7 @@ type oeUnitIn struct {
 }
 
 type oeAnswerIn struct {
+	Account   string              `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
 	CourseID  string              `json:"course_id" jsonschema:"course id from openedu_courses"`
 	ProblemID string              `json:"problem_id" jsonschema:"problem_id from openedu_problems"`
 	Answers   map[string][]string `json:"answers" jsonschema:"input name from openedu_problems → values: one choice value for radio and select, any number for checkbox, one string for text; inputs left out keep their saved answers"`
@@ -23,6 +24,7 @@ type oeAnswerIn struct {
 }
 
 type oeExamIn struct {
+	Account  string `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
 	CourseID string `json:"course_id" jsonschema:"course id from openedu_courses"`
 	Exam     string `json:"exam" jsonschema:"exam subsection: a link from openedu_outline, a block-v1:… usage key, its hex id, or a unique part of its name, e.g. Промежуточный экзамен"`
 	Start    bool   `json:"start,omitempty" jsonschema:"start the exam if it is not started yet; its clock then runs out for good"`
@@ -101,6 +103,9 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 		Description: "Answer an openedu.ru question with the user's answers: saves them, or with submit checks them for a score, " +
 			"spending one of the limited attempts (a wrongly answered question is reset first, which spends none). Returns the question with the stored answers, status and score." + confirmFirst},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in oeAnswerIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
 			v, err := oe.Answer(ctx, in.CourseID, in.ProblemID, in.Answers, in.Submit)
 			if err != nil {
 				return nil, nil, err
@@ -115,6 +120,9 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 			"so check the result with openedu_progress). With start, an exam not yet started is started: its clock cannot be stopped. " +
 			"Start only after the user has explicitly confirmed it."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in oeExamIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
 			v, err := oe.Exam(ctx, in.CourseID, in.Exam, in.Start)
 			if err != nil {
 				return nil, nil, err
@@ -126,6 +134,9 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true), OpenWorldHint: ptr(true)},
 		Description: "Finish the running attempt of a timed openedu.ru exam, as its «Завершить экзамен» button does: answers can no longer be changed." + confirmFirst},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in oeExamIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
 			v, err := oe.FinishExam(ctx, in.CourseID, in.Exam)
 			if err != nil {
 				return nil, nil, err

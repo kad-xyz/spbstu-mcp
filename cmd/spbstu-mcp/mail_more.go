@@ -9,13 +9,15 @@ import (
 )
 
 type mailMoveIn struct {
-	IDs    []string `json:"ids" jsonschema:"message ids from mail_list"`
-	Folder string   `json:"folder" jsonschema:"inbox, archive, deleteditems, junkemail, or a folder_id from mail_folders"`
+	Account string   `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
+	IDs     []string `json:"ids" jsonschema:"message ids from mail_list"`
+	Folder  string   `json:"folder" jsonschema:"inbox, archive, deleteditems, junkemail, or a folder_id from mail_folders"`
 }
 
 type mailMarkIn struct {
-	IDs  []string `json:"ids" jsonschema:"message ids from mail_list"`
-	Read bool     `json:"read" jsonschema:"true marks read, false marks unread"`
+	Account string   `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
+	IDs     []string `json:"ids" jsonschema:"message ids from mail_list"`
+	Read    bool     `json:"read" jsonschema:"true marks read, false marks unread"`
 }
 
 type calendarIn struct {
@@ -37,6 +39,9 @@ func registerMailMore(s *mcp.Server, mail mailService) {
 	mcp.AddTool(s, &mcp.Tool{Name: "mail_move", Annotations: &mcp.ToolAnnotations{IdempotentHint: true},
 		Description: "Move messages to another folder (archive, a study folder, junk)."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mailMoveIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
 			if len(in.IDs) == 0 || in.Folder == "" {
 				return nil, nil, errors.New("give message ids and a folder")
 			}
@@ -49,6 +54,9 @@ func registerMailMore(s *mcp.Server, mail mailService) {
 	mcp.AddTool(s, &mcp.Tool{Name: "mail_mark", Annotations: &mcp.ToolAnnotations{IdempotentHint: true},
 		Description: "Mark messages read or unread."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in mailMarkIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
 			if err := mail.MarkRead(ctx, in.IDs, in.Read); err != nil {
 				return nil, nil, err
 			}

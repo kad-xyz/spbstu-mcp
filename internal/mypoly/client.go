@@ -30,6 +30,8 @@ var csrfRe = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`)
 // a page redirects to the login form.
 type Client struct {
 	KeychainService string
+	// KeychainAccount picks the account of the service to sign in with; "" takes the first one.
+	KeychainAccount string
 	// State keeps the session cookies between runs; nil keeps them in memory only.
 	State *state.Store
 
@@ -82,7 +84,7 @@ func (c *Client) get(ctx context.Context, path string) ([]byte, bool, error) {
 }
 
 func (c *Client) signIn(ctx context.Context) error {
-	creds, err := keychain.Load(c.KeychainService)
+	creds, err := keychain.Load(c.KeychainService, c.KeychainAccount)
 	if err != nil {
 		return err
 	}
