@@ -97,11 +97,7 @@ func (r *Registry) SetActive(account string) error {
 	if !r.Has(account) {
 		return fmt.Errorf("account %s is not added", account)
 	}
-	path := filepath.Join(r.Dir, "active")
-	if err := os.WriteFile(path+".tmp", []byte(account+"\n"), 0o600); err != nil {
-		return err
-	}
-	return os.Rename(path+".tmp", path)
+	return state.WriteFile(filepath.Join(r.Dir, "active"), []byte(account+"\n"))
 }
 
 // Add adds an account with an empty session store.

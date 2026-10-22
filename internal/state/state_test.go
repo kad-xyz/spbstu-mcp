@@ -63,3 +63,17 @@ func TestJarKeepsCookieDomains(t *testing.T) {
 		t.Errorf("cookies leaked to another site: %v", got)
 	}
 }
+
+// Two servers (say, Claude Code and Claude Desktop) write the same file through their own Stores.
+func TestStoreConcurrentProcesses(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	errs := make(chan error, 20)
+	for range 20 {
+		go func() { errs <- (&Store{Path: path}).Set("k", "v") }()
+	}
+	for range 20 {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+}

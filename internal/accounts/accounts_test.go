@@ -73,3 +73,37 @@ func TestInvalidAccount(t *testing.T) {
 		}
 	}
 }
+
+// Parallel tool calls of a fresh server all find no active account and save it at once.
+func TestActiveConcurrent(t *testing.T) {
+	r := &Registry{Dir: t.TempDir(), First: func() (string, error) { return "ivanov.ii@edu.spbstu.ru", nil }}
+	errs := make(chan error, 20)
+	for range 20 {
+		go func() {
+			_, err := r.Active()
+			errs <- err
+		}()
+	}
+	for range 20 {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// Two servers (say, Claude Code and Claude Desktop) share the directory, not a Registry.
+func TestSetActiveConcurrentProcesses(t *testing.T) {
+	dir := t.TempDir()
+	if err := (&Registry{Dir: dir}).Add("ivanov.ii@edu.spbstu.ru"); err != nil {
+		t.Fatal(err)
+	}
+	errs := make(chan error, 20)
+	for range 20 {
+		go func() { errs <- (&Registry{Dir: dir}).SetActive("ivanov.ii@edu.spbstu.ru") }()
+	}
+	for range 20 {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
