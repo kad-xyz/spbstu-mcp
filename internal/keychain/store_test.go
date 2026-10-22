@@ -11,11 +11,17 @@ func TestStoreRoundTrip(t *testing.T) {
 	if os.Getenv("STORE_TEST") == "" {
 		t.Skip("set STORE_TEST=1 after storing spbstu-mcp-test / ivanov.ii@edu.spbstu.ru / Пароль-123")
 	}
-	c, err := Load("spbstu-mcp-test")
+	c, err := Load("spbstu-mcp-test", "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if c.Account != "ivanov.ii@edu.spbstu.ru" || c.Password != "Пароль-123" {
 		t.Fatalf("got account %q, password of %d bytes", c.Account, len(c.Password))
+	}
+	if _, err := Load("spbstu-mcp-test", "IVANOV.II@edu.spbstu.ru"); err != nil {
+		t.Fatalf("by account: %v", err)
+	}
+	if _, err := Load("spbstu-mcp-test", "petrov.pp@edu.spbstu.ru"); err == nil {
+		t.Fatal("another account's credential was returned")
 	}
 }

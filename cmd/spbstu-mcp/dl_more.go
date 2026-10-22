@@ -15,8 +15,9 @@ type conversationIn struct {
 }
 
 type sendMessageIn struct {
-	UserID int    `json:"user_id" jsonschema:"recipient's user_id, from dl_teachers or dl_messages"`
-	Text   string `json:"text" jsonschema:"plain-text message"`
+	Account string `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
+	UserID  int    `json:"user_id" jsonschema:"recipient's user_id, from dl_teachers or dl_messages"`
+	Text    string `json:"text" jsonschema:"plain-text message"`
 }
 
 type searchIn struct {
@@ -89,6 +90,9 @@ func registerDLMore(s *mcp.Server, dl dlService) {
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true), OpenWorldHint: ptr(true)},
 		Description: "Send a private message on dl.spbstu.ru, e.g. to a course teacher." + confirmFirst},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in sendMessageIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
 			if err := dl.SendMessage(ctx, in.UserID, in.Text); err != nil {
 				return nil, nil, err
 			}

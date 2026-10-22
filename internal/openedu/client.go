@@ -36,6 +36,8 @@ var (
 // Client keeps openedu.ru and courses.openedu.ru sessions and signs in when one lapses.
 type Client struct {
 	KeychainService string
+	// KeychainAccount picks the account of the service to sign in with; "" takes the first one.
+	KeychainAccount string
 	// State keeps the session cookies between runs; nil keeps them in memory only.
 	State *state.Store
 
@@ -165,7 +167,7 @@ func (c *Client) signIn(ctx context.Context, start, host string) error {
 	if broker == nil {
 		return fmt.Errorf("%s sign-in: SPbPU option not found at %s%s", host, final.Host, final.Path)
 	}
-	creds, err := keychain.Load(c.KeychainService)
+	creds, err := keychain.Load(c.KeychainService, c.KeychainAccount)
 	if err != nil {
 		return err
 	}

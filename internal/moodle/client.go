@@ -34,6 +34,8 @@ const (
 // SSO with the keychain credentials on first use and again whenever the token stops working.
 type Client struct {
 	KeychainService string
+	// KeychainAccount picks the account of the service to sign in with; "" takes the first one.
+	KeychainAccount string
 	// State keeps the token between runs; nil keeps it in memory only.
 	State *state.Store
 
@@ -190,7 +192,7 @@ func (c *Client) session(ctx context.Context) (string, error) {
 			}
 		}
 	}
-	token, err := signIn(ctx, c.KeychainService)
+	token, err := signIn(ctx, c.KeychainService, c.KeychainAccount)
 	if err != nil {
 		return "", err
 	}
@@ -216,8 +218,8 @@ func (c *Client) forget() {
 
 // signIn goes through the SSO and asks the mobile app launcher for a token, which it hands
 // back as a moodlemobile:// redirect carrying base64("siteid:::token[:::privatetoken]").
-func signIn(ctx context.Context, keychainService string) (string, error) {
-	creds, err := keychain.Load(keychainService)
+func signIn(ctx context.Context, keychainService, keychainAccount string) (string, error) {
+	creds, err := keychain.Load(keychainService, keychainAccount)
 	if err != nil {
 		return "", err
 	}
