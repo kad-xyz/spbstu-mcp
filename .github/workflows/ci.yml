@@ -29,7 +29,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           security add-generic-password -s spbstu-mcp-test -a ivanov.ii@edu.spbstu.ru -T /usr/bin/security -w 'Пароль-123'
-          STORE_TEST=1 go test ./internal/keychain -run TestStoreRoundTrip -v
+          STORE_TEST=1 go test ./internal/keychain -run "TestStoreRoundTrip|TestSaveDelete" -v
       - name: Credential store (Linux)
         if: runner.os == 'Linux'
         run: |

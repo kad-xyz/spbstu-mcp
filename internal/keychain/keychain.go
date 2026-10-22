@@ -25,6 +25,12 @@ type Credentials struct {
 // first item of the service.
 func Load(service, account string) (Credentials, error) {
 	c, err := load(service, account)
+	if err != nil && account != "" {
+		// Stores match the account case-sensitively; the first item may hold it in another case.
+		if first, ferr := load(service, ""); ferr == nil && strings.EqualFold(first.Account, account) {
+			c, err = first, nil
+		}
+	}
 	if err != nil {
 		return Credentials{}, err
 	}
