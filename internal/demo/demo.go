@@ -293,6 +293,23 @@ func (OpenEdu) Enroll(_ context.Context, courseID string) (*openedu.Course, erro
 	return &openedu.Course{ID: courseID, Name: "Введение в Python", Start: stamp(at(-45, 0, 0)), End: stamp(at(60, 0, 0)), Active: true}, nil
 }
 
+func (OpenEdu) AnswerMany(_ context.Context, _ string, items []openedu.AnswerItem, submit bool) ([]openedu.AnswerResult, error) {
+	out := make([]openedu.AnswerResult, 0, len(items))
+	for _, it := range items {
+		st := "unsubmitted"
+		if submit {
+			st = "correct"
+		}
+		out = append(out, openedu.AnswerResult{ProblemID: it.ProblemID, Title: "Вопрос", Score: "1/1", Attempts: "1/2", Status: []string{st}})
+	}
+	return out, nil
+}
+
+func (OpenEdu) Search(context.Context, string) ([]openedu.CatalogCourse, error) {
+	return []openedu.CatalogCourse{{ID: "course-v1:spbstu+WEBPYT+fall_2026", Name: "Web 2.0 программирование на языке Python", Org: "spbstu",
+		Start: stamp(at(-45, 9, 0)), End: stamp(at(60, 0, 0)), EnrollmentEnd: stamp(at(15, 0, 0))}}, nil
+}
+
 func (OpenEdu) ForumThread(context.Context, string) (*openedu.Thread, error) {
 	return &openedu.Thread{ID: "6a707596d7a8be0026ce3ff5", Title: "Ограничение доступа к курсу", Author: "course_staff", Created: stamp(at(-80, 11, 3)),
 		Body:     "Все вопросы по ограничению доступа к курсу просим писать в данной ветке.",

@@ -254,18 +254,20 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 </details>
 
 <details>
-<summary><b>openedu.ru</b>: 12 tools</summary>
+<summary><b>openedu.ru</b>: 14 tools</summary>
 
 | Tool | Description |
 |---|---|
 | `openedu_courses` | Your enrolled courses. |
-| `openedu_progress` | Completed units, current grade, grading policy, score of every subsection. |
+| `openedu_progress` | Completed units, current grade, grading policy, score of every graded subsection (`all` lists videos and notes too). |
 | `openedu_dates` | Course start, end and due dates. |
 | `openedu_outline` | Chapters and subsections with completion and links. |
 | `openedu_unit` | Text and links of course pages: a page or a whole subsection (lab descriptions, notes, attached files). Takes a link, a block id or part of a name. |
 | `openedu_problems` | Questions of a test or exercise page: question text (tables and pictures included), input names, choices, saved answers and their status, score and attempts. |
+| `openedu_answer_many` ✍️ | Answers several questions in one call, as `openedu_answer` does each, and returns a short result per question (score, attempts, status). Confirm with the user first. |
 | `openedu_answer` ✍️ | Saves the user's answers to a question, or with `submit` checks them for a score (spends one attempt; a wrongly answered question is reset first). Confirm with the user first. |
 | `openedu_exam` ✍️ | A timed exam: time limit, due date, the state of your attempt; while it runs, the minutes left and its questions, answered with `openedu_answer`. With `start`, starts the exam, whose clock cannot be stopped. Confirm with the user first. |
+| `openedu_search` | Finds course runs in the openedu.ru catalog by words of the name: run id, dates, end of enrollment. |
 | `openedu_enroll` ✍️ | Enrolls in a course run by its id, e.g. `course-v1:spbstu+WEBPYT+fall_2026`, as the «Записаться» button does. Confirm with the user first. |
 | `openedu_forum` | A course forum thread: its text and every response. Takes the thread link. |
 | `openedu_forum_reply` ✍️ | Posts a response to a course forum thread. Confirm with the user first. |

@@ -268,6 +268,12 @@ func (openeduProxy) FinishExam(ctx context.Context, courseID, block string) (*op
 func (openeduProxy) Enroll(ctx context.Context, courseID string) (*openedu.Course, error) {
 	return sess(ctx).oe.Enroll(ctx, courseID)
 }
+func (openeduProxy) AnswerMany(ctx context.Context, courseID string, items []openedu.AnswerItem, submit bool) ([]openedu.AnswerResult, error) {
+	return sess(ctx).oe.AnswerMany(ctx, courseID, items, submit)
+}
+func (openeduProxy) Search(ctx context.Context, query string) ([]openedu.CatalogCourse, error) {
+	return sess(ctx).oe.Search(ctx, query)
+}
 func (openeduProxy) ForumThread(ctx context.Context, thread string) (*openedu.Thread, error) {
 	return sess(ctx).oe.ForumThread(ctx, thread)
 }

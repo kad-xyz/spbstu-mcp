@@ -71,6 +71,51 @@ func (c *Client) Answer(ctx context.Context, courseID, problem string, answers m
 	if err != nil {
 		return nil, err
 	}
+	return c.answer(ctx, blocks, problem, answers, submit)
+}
+
+// AnswerItem is one question of AnswerMany with the answers to it.
+type AnswerItem struct {
+	ProblemID string              `json:"problem_id"`
+	Answers   map[string][]string `json:"answers"`
+}
+
+// AnswerResult is the short outcome of one question of AnswerMany.
+type AnswerResult struct {
+	ProblemID string   `json:"problem_id"`
+	Title     string   `json:"title,omitempty"`
+	Score     string   `json:"score,omitempty"`
+	Attempts  string   `json:"attempts,omitempty"`
+	Status    []string `json:"status,omitempty"` // one per input: correct, incorrect, submitted, unanswered…
+	Notice    string   `json:"notice,omitempty"`
+	Error     string   `json:"error,omitempty"`
+}
+
+// AnswerMany answers several questions of a course, reading the course structure once. A question
+// that fails is reported in its result and does not stop the rest.
+func (c *Client) AnswerMany(ctx context.Context, courseID string, items []AnswerItem, submit bool) ([]AnswerResult, error) {
+	blocks, err := c.courseBlocks(ctx, courseID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AnswerResult, 0, len(items))
+	for _, it := range items {
+		r := AnswerResult{ProblemID: it.ProblemID}
+		p, err := c.answer(ctx, blocks, it.ProblemID, it.Answers, submit)
+		if err != nil {
+			r.Error = err.Error()
+		} else {
+			r.Title, r.Score, r.Attempts, r.Notice = p.Title, p.Score, p.Attempts, p.Notice
+			for _, in := range p.Inputs {
+				r.Status = append(r.Status, in.Status)
+			}
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+
+func (c *Client) answer(ctx context.Context, blocks map[string]courseBlock, problem string, answers map[string][]string, submit bool) (*Problem, error) {
 	b, err := findProblem(blocks, problem)
 	if err != nil {
 		// Exam questions are missing from the blocks API, so a full usage key is taken as is.

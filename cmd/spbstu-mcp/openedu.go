@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 
+	"github.com/kad-xyz/spbstu-mcp/internal/openedu"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -45,6 +46,22 @@ type oeReplyIn struct {
 	Body    string `json:"body" jsonschema:"the reply text (Markdown)"`
 }
 
+type oeProgressIn struct {
+	CourseID string `json:"course_id" jsonschema:"course id from openedu_courses, e.g. course-v1:spbstu+DATAM+fall_2026_spring_2027"`
+	All      bool   `json:"all,omitempty" jsonschema:"list every subsection, videos and notes included; by default only graded ones (tests, exams)"`
+}
+
+type oeAnswerManyIn struct {
+	Account  string               `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
+	CourseID string               `json:"course_id" jsonschema:"course id from openedu_courses"`
+	Items    []openedu.AnswerItem `json:"items" jsonschema:"questions to answer: problem_id from openedu_problems or openedu_exam and answers (input name → values, as in openedu_answer)"`
+	Submit   bool                 `json:"submit,omitempty" jsonschema:"check the answers for a score, which uses up one attempt of each question; default only saves them"`
+}
+
+type oeSearchIn struct {
+	Query string `json:"query" jsonschema:"words of the course name, e.g. Web 2.0 or информационной безопасности"`
+}
+
 type oeCourseIn struct {
 	CourseID string `json:"course_id" jsonschema:"course id from openedu_courses, e.g. course-v1:spbstu+DATAM+fall_2026_spring_2027"`
 }
@@ -63,9 +80,22 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "openedu_progress", Annotations: readOnly,
-		Description: "Progress in an openedu.ru course: completed units, current grade, grading policy and the score of every subsection."},
-		func(ctx context.Context, _ *mcp.CallToolRequest, in oeCourseIn) (*mcp.CallToolResult, any, error) {
+		Description: "Progress in an openedu.ru course: completed units, current grade, grading policy and the score of every graded subsection (all lists videos and notes too)."},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in oeProgressIn) (*mcp.CallToolResult, any, error) {
 			v, err := oe.Progress(ctx, in.CourseID)
+			if err != nil {
+				return nil, nil, err
+			}
+			if !in.All {
+				v = v.GradedOnly()
+			}
+			return result(v)
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "openedu_search", Annotations: readOnly,
+		Description: "Search the openedu.ru catalog by words of a course name: course run ids (for openedu_enroll), organisation, dates and the end of enrollment."},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in oeSearchIn) (*mcp.CallToolResult, any, error) {
+			v, err := oe.Search(ctx, in.Query)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -122,6 +152,22 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 				return nil, nil, err
 			}
 			v, err := oe.Answer(ctx, in.CourseID, in.ProblemID, in.Answers, in.Submit)
+			if err != nil {
+				return nil, nil, err
+			}
+			return result(v)
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "openedu_answer_many",
+		Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true), OpenWorldHint: ptr(true)},
+		Description: "Answer several openedu.ru questions in one call, as openedu_answer does each: saves the answers, or with submit checks them, " +
+			"spending one attempt per question. Returns a short result per question (score, attempts, status of each input, error) instead of the full question; " +
+			"re-read a question with openedu_problems if you need it." + confirmFirst},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in oeAnswerManyIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
+			v, err := oe.AnswerMany(ctx, in.CourseID, in.Items, in.Submit)
 			if err != nil {
 				return nil, nil, err
 			}

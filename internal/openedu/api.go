@@ -2,7 +2,9 @@ package openedu
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 )
@@ -133,6 +135,25 @@ func (c *Client) Progress(ctx context.Context, courseID string) (*Progress, erro
 	return p, nil
 }
 
+// GradedOnly drops the subsections that carry no grade (videos, notes) and the sections left empty,
+// which shrinks the progress of a large course to its tests and exams.
+func (p *Progress) GradedOnly() *Progress {
+	q := *p
+	q.Sections = nil
+	for _, s := range p.Sections {
+		var subs []Subsection
+		for _, ss := range s.Subsections {
+			if ss.Graded || ss.Earned != "" {
+				subs = append(subs, ss)
+			}
+		}
+		if len(subs) > 0 {
+			q.Sections = append(q.Sections, Section{Name: s.Name, Subsections: subs})
+		}
+	}
+	return &q
+}
+
 type Date struct {
 	Date     string `json:"date"`
 	Title    string `json:"title"`
@@ -243,4 +264,47 @@ func (c *Client) Enroll(ctx context.Context, courseID string) (*Course, error) {
 		}
 	}
 	return nil, fmt.Errorf("the LMS accepted the enrollment in %s, but it is not among the user's courses", courseID)
+}
+
+// CatalogCourse is a course run found in the openedu.ru catalog.
+type CatalogCourse struct {
+	ID            string `json:"course_id"`
+	Name          string `json:"name"`
+	Org           string `json:"org"`
+	Start         string `json:"start,omitempty"`
+	End           string `json:"end,omitempty"`
+	EnrollmentEnd string `json:"enrollment_end,omitempty"`
+}
+
+// Search finds course runs in the catalog by words of their name, as the LMS course search does.
+func (c *Client) Search(ctx context.Context, query string) ([]CatalogCourse, error) {
+	form := url.Values{"search_string": {query}, "page_size": {"50"}, "page_index": {"0"}}
+	b, err := c.formLMS(ctx, http.MethodPost, "/search/course_discovery/", form)
+	if err != nil {
+		return nil, err
+	}
+	var raw struct {
+		Results []struct {
+			Data struct {
+				ID            string `json:"id"`
+				Org           string `json:"org"`
+				Start         string `json:"start"`
+				End           string `json:"end"`
+				EnrollmentEnd string `json:"enrollment_end"`
+				Content       struct {
+					Name string `json:"display_name"`
+				} `json:"content"`
+			} `json:"data"`
+		} `json:"results"`
+	}
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, fmt.Errorf("unexpected search response: %.200s", b)
+	}
+	out := make([]CatalogCourse, 0, len(raw.Results))
+	for _, r := range raw.Results {
+		d := r.Data
+		out = append(out, CatalogCourse{ID: d.ID, Name: d.Content.Name, Org: d.Org,
+			Start: localTime(d.Start), End: localTime(d.End), EnrollmentEnd: localTime(d.EnrollmentEnd)})
+	}
+	return out, nil
 }

@@ -23,8 +23,8 @@ type answersOut struct {
 }
 
 // answersRules is how a test is done with the answer bases; it goes into the server instructions.
-const answersRules = " To do a test for the user: read it with openedu_problems, find the course in answers_subjects, look every question up with answers_search, " +
-	"then save (never submit) the answers with openedu_answer, and report each question as one of: " +
+const answersRules = " To do a test for the user: read it with openedu_problems, find the course in answers_subjects, look all questions up with one answers_search call, " +
+	"then save (never submit) all the answers with one openedu_answer_many call, and report each question as one of: " +
 	"✅ from the base (found=true; give the source link), 🟡 from the base but doubtful (the base answer looks wrong to you, or matches disagree; still put the base answer in, never your own, and say why you doubt it), " +
 	"⚠️ not in the base (your own answer, to be checked by the user). List ⚠️ and 🟡 first, and say that the test was saved but not submitted."
 
