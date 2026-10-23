@@ -80,3 +80,24 @@ func TestQuestionsSuffix(t *testing.T) {
 		}
 	}
 }
+
+// A text input inside a sentence: the words after it belong to the question too.
+func TestParseTrailingText(t *testing.T) {
+	content := `<h3 class="hd hd-3 problem-header">Вопрос по теме 2</h3>
+<div class="problem"><div><div class="inline" role="group"><p style="display: inline;">Тег с именем <div class="capa_inputtype inline textline"><div class="unanswered inline">
+<input type="text" name="input_y_2_1" value=""/><span class="trailing_text"></span>
+<span class="status unanswered"><span class="sr">нет ответа</span></span><p class="answer"></p></div></div><p style="display: inline;">добавляет картинки на веб-страницу.</p></p></div></div></div>
+<div class="action"><input type="hidden" name="problem_id" value="Вопрос по теме 2"/><button class="submit"><span>Отправить</span></button>
+<div class="submission-feedback">Вы использовали 0 из 3 попыток<span class="sr">подсказка</span></div></div>`
+	page := `<div class="problems-wrapper" data-problem-id="p" data-content="` + html.EscapeString(content) + `"></div>`
+	ps := parseProblems([]byte(page))
+	if len(ps) != 1 || len(ps[0].Inputs) != 1 {
+		t.Fatalf("got %+v", ps)
+	}
+	if got, want := ps[0].Inputs[0].Prompt, "Тег с именем ___ добавляет картинки на веб-страницу."; got != want {
+		t.Errorf("prompt %q, want %q", got, want)
+	}
+	if ps[0].Attempts != "0/3" {
+		t.Errorf("attempts %q", ps[0].Attempts)
+	}
+}

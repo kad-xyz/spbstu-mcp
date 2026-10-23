@@ -388,6 +388,11 @@ func parseContent(p *Problem, content string) {
 		}
 	}
 	walk(doc)
+	// Text after the last input ends its question: «Тег с именем ___ добавляет картинки».
+	if rest := tidy(prompt.String()); rest != "" && len(p.Inputs) > 0 {
+		last := &p.Inputs[len(p.Inputs)-1]
+		last.Prompt = strings.TrimSpace(last.Prompt + " ___ " + rest)
+	}
 }
 
 // absURL resolves a link of the course markup against the LMS.
@@ -481,7 +486,8 @@ func (c *Client) sendLMS(ctx context.Context, method, path, contentType, body st
 	if _, err := buf.ReadFrom(resp.Body); err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != http.StatusOK {
+	// The forum answers a created comment with 201.
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("courses.openedu.ru%s: HTTP %d: %.200s", path, resp.StatusCode, buf.Bytes())
 	}
 	return buf.Bytes(), nil
