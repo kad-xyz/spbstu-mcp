@@ -388,10 +388,15 @@ func parseContent(p *Problem, content string) {
 		}
 	}
 	walk(doc)
-	// Text after the last input ends its question: «Тег с именем ___ добавляет картинки».
+	// Text after the last input ends its question: a blank to fill in stands inside the
+	// sentence («Тег с именем ___ добавляет картинки»), a choice group is followed by a note.
 	if rest := tidy(prompt.String()); rest != "" && len(p.Inputs) > 0 {
 		last := &p.Inputs[len(p.Inputs)-1]
-		last.Prompt = strings.TrimSpace(last.Prompt + " ___ " + rest)
+		sep := "\n"
+		if last.Type == "text" || last.Type == "select" {
+			sep = " ___ "
+		}
+		last.Prompt = strings.TrimSpace(last.Prompt + sep + rest)
 	}
 }
 
