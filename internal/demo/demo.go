@@ -293,6 +293,16 @@ func (OpenEdu) Enroll(_ context.Context, courseID string) (*openedu.Course, erro
 	return &openedu.Course{ID: courseID, Name: "Введение в Python", Start: stamp(at(-45, 0, 0)), End: stamp(at(60, 0, 0)), Active: true}, nil
 }
 
+func (OpenEdu) ForumThread(context.Context, string) (*openedu.Thread, error) {
+	return &openedu.Thread{ID: "6a707596d7a8be0026ce3ff5", Title: "Ограничение доступа к курсу", Author: "course_staff", Created: stamp(at(-80, 11, 3)),
+		Body:     "Все вопросы по ограничению доступа к курсу просим писать в данной ветке.",
+		Comments: []openedu.Comment{{ID: "6a8000000000000000000001", Author: "student", Created: stamp(at(-3, 9, 0)), Body: "Прошу открыть доступ к тестам.", Replies: 1}}}, nil
+}
+
+func (OpenEdu) ForumReply(_ context.Context, _ string, body string) (*openedu.Comment, error) {
+	return &openedu.Comment{ID: "6a8000000000000000000002", Author: "student", Created: stamp(at(0, 12, 0)), Body: body}, nil
+}
+
 func (OpenEdu) FinishExam(context.Context, string, string) (*openedu.Exam, error) {
 	e := demoExam("submitted")
 	e.AttemptID = 1

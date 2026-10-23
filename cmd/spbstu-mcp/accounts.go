@@ -268,6 +268,12 @@ func (openeduProxy) FinishExam(ctx context.Context, courseID, block string) (*op
 func (openeduProxy) Enroll(ctx context.Context, courseID string) (*openedu.Course, error) {
 	return sess(ctx).oe.Enroll(ctx, courseID)
 }
+func (openeduProxy) ForumThread(ctx context.Context, thread string) (*openedu.Thread, error) {
+	return sess(ctx).oe.ForumThread(ctx, thread)
+}
+func (openeduProxy) ForumReply(ctx context.Context, thread, body string) (*openedu.Comment, error) {
+	return sess(ctx).oe.ForumReply(ctx, thread, body)
+}
 
 type myProxy struct{}
 
