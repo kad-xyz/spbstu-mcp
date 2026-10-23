@@ -64,7 +64,7 @@ func (r *Registry) Has(account string) bool {
 // Active returns the active account. The first time, it adopts the account of First and
 // moves the sessions of a single-account version to it.
 func (r *Registry) Active() (string, error) {
-	b, err := os.ReadFile(filepath.Join(r.Dir, "active"))
+	b, err := state.ReadFile(filepath.Join(r.Dir, "active"))
 	if err == nil {
 		if account := strings.TrimSpace(string(b)); account != "" {
 			return account, nil
