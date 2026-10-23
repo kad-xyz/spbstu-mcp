@@ -254,7 +254,7 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 </details>
 
 <details>
-<summary><b>openedu.ru</b>: 9 tools</summary>
+<summary><b>openedu.ru</b>: 10 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -266,6 +266,7 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 | `openedu_problems` | Questions of a test or exercise page: question text (tables and pictures included), input names, choices, saved answers and their status, score and attempts. |
 | `openedu_answer` ✍️ | Saves the user's answers to a question, or with `submit` checks them for a score (spends one attempt; a wrongly answered question is reset first). Confirm with the user first. |
 | `openedu_exam` ✍️ | A timed exam: time limit, due date, the state of your attempt; while it runs, the minutes left and its questions, answered with `openedu_answer`. With `start`, starts the exam, whose clock cannot be stopped. Confirm with the user first. |
+| `openedu_enroll` ✍️ | Enrolls in a course run by its id, e.g. `course-v1:spbstu+WEBPYT+fall_2026`, as the «Записаться» button does. Confirm with the user first. |
 | `openedu_exam_finish` ✍️ | Finishes the running attempt of a timed exam. Confirm with the user first. |
 
 </details>

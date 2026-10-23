@@ -225,3 +225,22 @@ func (c *Client) Outline(ctx context.Context, courseID string) ([]Chapter, error
 	}
 	return out, nil
 }
+
+// Enroll signs the user up for a course run, as the «Записаться» button does, and returns the
+// enrollment as openedu_courses lists it. Enrolling twice is harmless.
+func (c *Client) Enroll(ctx context.Context, courseID string) (*Course, error) {
+	body := map[string]any{"course_details": map[string]string{"course_id": courseID}}
+	if _, err := c.jsonLMS(ctx, "/api/enrollment/v1/enrollment", body); err != nil {
+		return nil, fmt.Errorf("not enrolled in %s: %w", courseID, err)
+	}
+	courses, err := c.Courses(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	for _, co := range courses {
+		if co.ID == courseID {
+			return &co, nil
+		}
+	}
+	return nil, fmt.Errorf("the LMS accepted the enrollment in %s, but it is not among the user's courses", courseID)
+}

@@ -445,15 +445,28 @@ func (c *Client) PostLMS(ctx context.Context, path string, form url.Values) ([]b
 
 // formLMS sends a form to the LMS with the given method, as PostLMS does.
 func (c *Client) formLMS(ctx context.Context, method, path string, form url.Values) ([]byte, error) {
+	return c.sendLMS(ctx, method, path, "application/x-www-form-urlencoded; charset=UTF-8", form.Encode())
+}
+
+// jsonLMS posts a JSON body to an LMS API, as formLMS does a form.
+func (c *Client) jsonLMS(ctx context.Context, path string, body any) ([]byte, error) {
+	b, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	return c.sendLMS(ctx, http.MethodPost, path, "application/json", string(b))
+}
+
+func (c *Client) sendLMS(ctx context.Context, method, path, contentType, body string) ([]byte, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.init()
 	csrf := c.csrfToken(ctx)
-	req, err := http.NewRequestWithContext(ctx, method, LMSURL+path, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, method, LMSURL+path, strings.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("X-CSRFToken", csrf)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")

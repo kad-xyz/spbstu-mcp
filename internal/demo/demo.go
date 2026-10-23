@@ -289,6 +289,10 @@ func (OpenEdu) Exam(_ context.Context, _, _ string, start bool) (*openedu.Exam, 
 	return e, nil
 }
 
+func (OpenEdu) Enroll(_ context.Context, courseID string) (*openedu.Course, error) {
+	return &openedu.Course{ID: courseID, Name: "Введение в Python", Start: stamp(at(-45, 0, 0)), End: stamp(at(60, 0, 0)), Active: true}, nil
+}
+
 func (OpenEdu) FinishExam(context.Context, string, string) (*openedu.Exam, error) {
 	e := demoExam("submitted")
 	e.AttemptID = 1

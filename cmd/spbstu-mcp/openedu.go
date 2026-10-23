@@ -30,6 +30,11 @@ type oeExamIn struct {
 	Start    bool   `json:"start,omitempty" jsonschema:"start the exam if it is not started yet; its clock then runs out for good"`
 }
 
+type oeEnrollIn struct {
+	Account  string `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
+	CourseID string `json:"course_id" jsonschema:"course run id, e.g. course-v1:spbstu+WEBPYT+fall_2026"`
+}
+
 type oeCourseIn struct {
 	CourseID string `json:"course_id" jsonschema:"course id from openedu_courses, e.g. course-v1:spbstu+DATAM+fall_2026_spring_2027"`
 }
@@ -124,6 +129,22 @@ func registerOpenEdu(s *mcp.Server, oe openeduService) {
 				return nil, nil, err
 			}
 			v, err := oe.Exam(ctx, in.CourseID, in.Exam, in.Start)
+			if err != nil {
+				return nil, nil, err
+			}
+			return result(v)
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "openedu_enroll",
+		Annotations: &mcp.ToolAnnotations{OpenWorldHint: ptr(true)},
+		Description: "Enroll in an openedu.ru course run, as its «Записаться» button does: takes the run's course id, " +
+			"e.g. course-v1:spbstu+WEBPYT+fall_2026 (the course page link openedu.ru/course/spbstu/WEBPYT/?session=fall_2026 names both parts). " +
+			"Returns the enrollment as openedu_courses lists it." + confirmFirst},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in oeEnrollIn) (*mcp.CallToolResult, any, error) {
+			if err := checkAccount(ctx, in.Account); err != nil {
+				return nil, nil, err
+			}
+			v, err := oe.Enroll(ctx, in.CourseID)
 			if err != nil {
 				return nil, nil, err
 			}

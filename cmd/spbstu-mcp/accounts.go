@@ -265,6 +265,9 @@ func (openeduProxy) Exam(ctx context.Context, courseID, block string, start bool
 func (openeduProxy) FinishExam(ctx context.Context, courseID, block string) (*openedu.Exam, error) {
 	return sess(ctx).oe.FinishExam(ctx, courseID, block)
 }
+func (openeduProxy) Enroll(ctx context.Context, courseID string) (*openedu.Course, error) {
+	return sess(ctx).oe.Enroll(ctx, courseID)
+}
 
 type myProxy struct{}
 

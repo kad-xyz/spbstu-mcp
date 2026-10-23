@@ -58,6 +58,7 @@ type openeduService interface {
 	Answer(ctx context.Context, courseID, problem string, answers map[string][]string, submit bool) (*openedu.Problem, error)
 	Exam(ctx context.Context, courseID, block string, start bool) (*openedu.Exam, error)
 	FinishExam(ctx context.Context, courseID, block string) (*openedu.Exam, error)
+	Enroll(ctx context.Context, courseID string) (*openedu.Course, error)
 }
 
 type myService interface {
