@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 // Store is a small JSON file of named string values, readable only by the user.
@@ -65,12 +66,24 @@ func WriteFile(path string, data []byte) error {
 		err = cerr
 	}
 	if err == nil {
-		err = os.Rename(tmp, path)
+		err = rename(tmp, path)
 	}
 	if err != nil {
 		_ = os.Remove(tmp)
 	}
 	return err
+}
+
+// rename moves tmp over path. Windows refuses to replace a file while another writer is
+// replacing it or a reader has it open, so a refused rename is retried for a while.
+func rename(tmp, path string) error {
+	var err error
+	for wait := time.Millisecond; ; wait *= 2 {
+		if err = os.Rename(tmp, path); err == nil || !errors.Is(err, fs.ErrPermission) || wait > time.Second {
+			return err
+		}
+		time.Sleep(wait)
+	}
 }
 
 func (s *Store) load() map[string]string {
