@@ -100,7 +100,7 @@ func registerDLMore(s *mcp.Server, dl dlService) {
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "dl_search", Annotations: readOnly,
-		Description: "Search every current course for activities, resources and files whose name, description or file name contains all the words."},
+		Description: "Search every current course for activities, resources and files whose name, description or file name contains all the words. Each hit carries the activity's cmid and instance_id (forum tools take the instance_id)."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in searchIn) (*mcp.CallToolResult, any, error) {
 			v, err := dl.Search(ctx, in.Query, in.All)
 			if err != nil {

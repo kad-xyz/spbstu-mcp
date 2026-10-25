@@ -19,7 +19,7 @@ type submitIn struct {
 
 type discussionNewIn struct {
 	Account string   `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
-	ForumID int      `json:"forum_id" jsonschema:"instance_id of the forum from dl_course_contents"`
+	ForumID int      `json:"forum_id" jsonschema:"instance_id of the forum from dl_search or dl_course_contents"`
 	Subject string   `json:"subject" jsonschema:"discussion subject, e.g. the user's full name and group for upload forums"`
 	Message string   `json:"message" jsonschema:"message text (HTML allowed)"`
 	Files   []string `json:"files,omitempty" jsonschema:"absolute paths of local files to attach"`

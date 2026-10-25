@@ -55,7 +55,7 @@ func (d DL) Search(ctx context.Context, query string, _ bool) ([]moodle.Hit, err
 		for _, s := range secs {
 			for _, m := range s.Modules {
 				if strings.Contains(strings.ToLower(m.Name), q) {
-					out = append(out, moodle.Hit{Course: "Базы данных (заочная форма обучения)", CourseID: co, Section: s.Name, Name: m.Name, Type: m.Type, CMID: m.CMID, Match: "name"})
+					out = append(out, moodle.Hit{Course: "Базы данных (заочная форма обучения)", CourseID: co, Section: s.Name, Name: m.Name, Type: m.Type, CMID: m.CMID, InstanceID: m.InstanceID, Match: "name"})
 				}
 			}
 		}

@@ -206,7 +206,7 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 | `dl_notifications` | Newest notifications: grades, feedback, forum posts, due dates. |
 | `dl_messages` | Private conversations with their last message. |
 | `dl_conversation` | All messages of a conversation. |
-| `dl_search` | Search every course for activities, resources and files. |
+| `dl_search` | Search every course for activities, resources and files; each hit has the cmid and the instance_id that forum tools take. |
 | `dl_send_message` ✍️ | Send a private message, e.g. to a teacher. |
 | `dl_submit_assignment` ✍️ | Upload files and/or text to an assignment, optionally submit for grading. |
 | `dl_forum_new_discussion` ✍️ | Start a discussion, e.g. post a report to an upload forum. |

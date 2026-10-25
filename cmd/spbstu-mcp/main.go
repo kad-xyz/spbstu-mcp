@@ -37,7 +37,7 @@ func main() {
 	server := mcp.NewServer(&mcp.Implementation{Name: "spbstu-mcp", Version: version}, &mcp.ServerOptions{
 		Instructions: "SPbPU (Политех) student services of the user. For \"what is due / what is going on\" start with study_overview. dl_* tools read the dl.spbstu.ru Moodle: " +
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
-			"forum's instance_id from dl_course_contents, not its cmid. mail_* tools work with the university " +
+			"forum's instance_id, not its cmid: dl_search finds a forum by name with its instance_id, cheaper than reading all of dl_course_contents. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
 			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline, page text); openedu_problems reads a test's questions and openedu_answer_many saves or submits the answers to all of them in one call (openedu_answer for a single one; submitting spends an attempt); openedu_progress lists graded items only unless all is set; openedu_search finds a course run id in the catalog; timed exams are started and read with openedu_exam and finished with openedu_exam_finish; openedu_enroll enrolls in a course run; openedu_forum reads a course forum thread and openedu_forum_reply posts to it. schedule reads the public timetable. my_* tools read my.spbstu.ru: grades (record book), study and work plans, debts. For one discipline use study_subject. answers_* tools search the student answer bases polyvsp.ru and polyphis.ru." + accountRules + answersRules,
 	})

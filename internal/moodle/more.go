@@ -265,14 +265,15 @@ func (c *Client) SendMessage(ctx context.Context, userID int, text string) error
 }
 
 type Hit struct {
-	Course   string `json:"course"`
-	CourseID int    `json:"course_id"`
-	Section  string `json:"section"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	CMID     int    `json:"cmid"`
-	URL      string `json:"url,omitempty"`
-	Match    string `json:"match"`
+	Course     string `json:"course"`
+	CourseID   int    `json:"course_id"`
+	Section    string `json:"section"`
+	Name       string `json:"name"`
+	Type       string `json:"type"`
+	CMID       int    `json:"cmid"`
+	InstanceID int    `json:"instance_id"`
+	URL        string `json:"url,omitempty"`
+	Match      string `json:"match"`
 }
 
 // Search looks for words in the names, descriptions and file names of every current course.
@@ -331,7 +332,7 @@ func (c *Client) Search(ctx context.Context, query string, all bool) ([]Hit, err
 						continue
 					}
 					seen[[2]int{co.ID, m.CMID}] = true
-					out = append(out, Hit{Course: co.Name, CourseID: co.ID, Section: s.Name, Name: m.Name, Type: m.Type, CMID: m.CMID, URL: m.URL, Match: where})
+					out = append(out, Hit{Course: co.Name, CourseID: co.ID, Section: s.Name, Name: m.Name, Type: m.Type, CMID: m.CMID, InstanceID: m.InstanceID, URL: m.URL, Match: where})
 					mu.Unlock()
 				}
 			}

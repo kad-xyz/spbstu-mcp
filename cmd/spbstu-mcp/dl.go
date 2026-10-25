@@ -24,7 +24,7 @@ type assignIn struct {
 }
 
 type forumIn struct {
-	ForumID int `json:"forum_id" jsonschema:"instance_id of a forum module from dl_course_contents"`
+	ForumID int `json:"forum_id" jsonschema:"instance_id of a forum module from dl_search or dl_course_contents"`
 }
 
 type discussionIn struct {
