@@ -26,7 +26,7 @@ const demoAccount = "ivanov.ii@edu.spbstu.ru"
 // belong to the same person even if the account is switched meanwhile.
 type session struct {
 	account string
-	dl      dlService
+	dl      map[string]dlService
 	oe      openeduService
 	mail    mailService
 	my      myService
@@ -49,7 +49,7 @@ func newAccountSet(reg *accounts.Registry, service string, demoMode bool) *accou
 // active returns the session of the active account.
 func (a *accountSet) active() (*session, error) {
 	if a.demo {
-		return &session{account: demoAccount, dl: demo.DL{}, oe: demo.OpenEdu{}, mail: demo.Mail{}, my: demo.My{}}, nil
+		return &session{account: demoAccount, dl: map[string]dlService{moodle.DefaultSite: demo.DL{}}, oe: demo.OpenEdu{}, mail: demo.Mail{}, my: demo.My{}}, nil
 	}
 	account, err := a.reg.Active()
 	if err != nil {
@@ -66,9 +66,13 @@ func (a *accountSet) session(account string) *session {
 		return s
 	}
 	store := a.reg.Store(account)
+	dl := make(map[string]dlService, len(moodle.Sites))
+	for _, site := range moodle.Sites {
+		dl[site] = &moodle.Client{Site: site, KeychainService: a.service, KeychainAccount: account, State: store}
+	}
 	s := &session{
 		account: account,
-		dl:      &moodle.Client{KeychainService: a.service, KeychainAccount: account, State: store},
+		dl:      dl,
 		oe:      &openedu.Client{KeychainService: a.service, KeychainAccount: account, State: store},
 		mail:    &ews.Client{KeychainService: a.service, KeychainAccount: account},
 		my:      &mypoly.Client{KeychainService: a.service, KeychainAccount: account, State: store},
@@ -149,65 +153,87 @@ func (a *accountSet) middleware(next mcp.MethodHandler) mcp.MethodHandler {
 
 type dlProxy struct{}
 
+type moodleSiteKey struct{}
+
+func withMoodleSite(ctx context.Context, site string) (context.Context, error) {
+	if site == "" {
+		site = moodle.DefaultSite
+	}
+	for _, allowed := range moodle.Sites {
+		if site == allowed {
+			return context.WithValue(ctx, moodleSiteKey{}, site), nil
+		}
+	}
+	return nil, fmt.Errorf("unsupported Moodle site %q; supported sites: %s", site, strings.Join(moodle.Sites, ", "))
+}
+
+func dlFor(ctx context.Context) dlService {
+	site, _ := ctx.Value(moodleSiteKey{}).(string)
+	if site == "" {
+		site = moodle.DefaultSite
+	}
+	return sess(ctx).dl[site]
+}
+
 func (dlProxy) Courses(ctx context.Context, current bool) ([]moodle.Course, error) {
-	return sess(ctx).dl.Courses(ctx, current)
+	return dlFor(ctx).Courses(ctx, current)
 }
 func (dlProxy) Contents(ctx context.Context, courseID int) ([]moodle.Section, error) {
-	return sess(ctx).dl.Contents(ctx, courseID)
+	return dlFor(ctx).Contents(ctx, courseID)
 }
 func (dlProxy) Deadlines(ctx context.Context, daysBack, daysAhead int) ([]moodle.Deadline, error) {
-	return sess(ctx).dl.Deadlines(ctx, daysBack, daysAhead)
+	return dlFor(ctx).Deadlines(ctx, daysBack, daysAhead)
 }
 func (dlProxy) Assignments(ctx context.Context, courseID int) ([]moodle.Assignment, error) {
-	return sess(ctx).dl.Assignments(ctx, courseID)
+	return dlFor(ctx).Assignments(ctx, courseID)
 }
 func (dlProxy) SubmissionStatus(ctx context.Context, assignID int) (map[string]any, error) {
-	return sess(ctx).dl.SubmissionStatus(ctx, assignID)
+	return dlFor(ctx).SubmissionStatus(ctx, assignID)
 }
 func (dlProxy) Grades(ctx context.Context, courseID int) ([]moodle.GradeItem, error) {
-	return sess(ctx).dl.Grades(ctx, courseID)
+	return dlFor(ctx).Grades(ctx, courseID)
 }
 func (dlProxy) Discussions(ctx context.Context, forumID int) ([]moodle.Discussion, error) {
-	return sess(ctx).dl.Discussions(ctx, forumID)
+	return dlFor(ctx).Discussions(ctx, forumID)
 }
 func (dlProxy) Posts(ctx context.Context, discussionID int) ([]moodle.Post, error) {
-	return sess(ctx).dl.Posts(ctx, discussionID)
+	return dlFor(ctx).Posts(ctx, discussionID)
 }
 func (dlProxy) Page(ctx context.Context, courseID, cmid int) (string, error) {
-	return sess(ctx).dl.Page(ctx, courseID, cmid)
+	return dlFor(ctx).Page(ctx, courseID, cmid)
 }
 func (dlProxy) Download(ctx context.Context, fileURL, dir string) (string, error) {
-	return sess(ctx).dl.Download(ctx, fileURL, dir)
+	return dlFor(ctx).Download(ctx, fileURL, dir)
 }
 func (dlProxy) SaveSubmission(ctx context.Context, assignID int, paths []string, text string, submit bool) error {
-	return sess(ctx).dl.SaveSubmission(ctx, assignID, paths, text, submit)
+	return dlFor(ctx).SaveSubmission(ctx, assignID, paths, text, submit)
 }
 func (dlProxy) AddDiscussion(ctx context.Context, forumID int, subject, message string, paths []string) (int, error) {
-	return sess(ctx).dl.AddDiscussion(ctx, forumID, subject, message, paths)
+	return dlFor(ctx).AddDiscussion(ctx, forumID, subject, message, paths)
 }
 func (dlProxy) Reply(ctx context.Context, postID int, subject, message string, paths []string) error {
-	return sess(ctx).dl.Reply(ctx, postID, subject, message, paths)
+	return dlFor(ctx).Reply(ctx, postID, subject, message, paths)
 }
 func (dlProxy) Quizzes(ctx context.Context, courseID int) ([]moodle.Quiz, error) {
-	return sess(ctx).dl.Quizzes(ctx, courseID)
+	return dlFor(ctx).Quizzes(ctx, courseID)
 }
 func (dlProxy) Teachers(ctx context.Context, courseID int) ([]moodle.Person, error) {
-	return sess(ctx).dl.Teachers(ctx, courseID)
+	return dlFor(ctx).Teachers(ctx, courseID)
 }
 func (dlProxy) Notifications(ctx context.Context, limit int) ([]moodle.Notification, int, error) {
-	return sess(ctx).dl.Notifications(ctx, limit)
+	return dlFor(ctx).Notifications(ctx, limit)
 }
 func (dlProxy) Conversations(ctx context.Context, limit int) ([]moodle.Conversation, error) {
-	return sess(ctx).dl.Conversations(ctx, limit)
+	return dlFor(ctx).Conversations(ctx, limit)
 }
 func (dlProxy) ConversationMessages(ctx context.Context, conversationID int) ([]moodle.Message, error) {
-	return sess(ctx).dl.ConversationMessages(ctx, conversationID)
+	return dlFor(ctx).ConversationMessages(ctx, conversationID)
 }
 func (dlProxy) SendMessage(ctx context.Context, userID int, text string) error {
-	return sess(ctx).dl.SendMessage(ctx, userID, text)
+	return dlFor(ctx).SendMessage(ctx, userID, text)
 }
 func (dlProxy) Search(ctx context.Context, query string, all bool) ([]moodle.Hit, error) {
-	return sess(ctx).dl.Search(ctx, query, all)
+	return dlFor(ctx).Search(ctx, query, all)
 }
 
 type mailProxy struct{}
@@ -393,7 +419,7 @@ func registerAccounts(s *mcp.Server, a *accountSet) {
 			a.mu.Lock()
 			check := a.session(account)
 			a.mu.Unlock()
-			if _, err := check.dl.Courses(ctx, true); err != nil {
+			if _, err := check.dl[moodle.DefaultSite].Courses(ctx, true); err != nil {
 				a.forget(account)
 				_ = a.reg.Remove(account)
 				if saved {

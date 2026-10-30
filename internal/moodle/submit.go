@@ -27,7 +27,7 @@ func (c *Client) UploadDraft(ctx context.Context, paths []string) (int, error) {
 	}
 	itemID := 0
 	for _, p := range paths {
-		id, err := upload(ctx, token, p, itemID)
+		id, err := c.upload(ctx, token, p, itemID)
 		if err != nil {
 			return 0, fmt.Errorf("upload %s: %w", filepath.Base(p), err)
 		}
@@ -36,7 +36,11 @@ func (c *Client) UploadDraft(ctx context.Context, paths []string) (int, error) {
 	return itemID, nil
 }
 
-func upload(ctx context.Context, token, path string, itemID int) (int, error) {
+func (c *Client) upload(ctx context.Context, token, path string, itemID int) (int, error) {
+	baseURL, err := c.baseURL()
+	if err != nil {
+		return 0, err
+	}
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, err
@@ -57,7 +61,7 @@ func upload(ctx context.Context, token, path string, itemID int) (int, error) {
 	if err := w.Close(); err != nil {
 		return 0, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, BaseURL+"/webservice/upload.php", &buf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, baseURL+"/webservice/upload.php", &buf)
 	if err != nil {
 		return 0, err
 	}

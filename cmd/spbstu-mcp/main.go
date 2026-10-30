@@ -1,4 +1,4 @@
-// Command spbstu-mcp is an MCP server for the SPbPU student services: the dl.spbstu.ru Moodle
+// Command spbstu-mcp is an MCP server for the SPbPU student services: the university Moodle sites
 // and my.spbstu.ru. It signs in with logins kept in the system credential store and acts as
 // one of them at a time, the active account.
 package main
@@ -35,7 +35,7 @@ func main() {
 	accts := newAccountSet(reg, *service, *demoMode)
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "spbstu-mcp", Version: version}, &mcp.ServerOptions{
-		Instructions: "SPbPU (Политех) student services of the user. For \"what is due / what is going on\" start with study_overview. dl_* tools read the dl.spbstu.ru Moodle: " +
+		Instructions: "SPbPU (Политех) student services of the user. For \"what is due / what is going on\" start with study_overview. dl_* tools read the university Moodle sites (dl.spbstu.ru by default; use site for another): " +
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id, not its cmid: dl_search finds a forum by name with its instance_id, cheaper than reading all of dl_course_contents. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
