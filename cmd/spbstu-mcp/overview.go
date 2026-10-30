@@ -32,7 +32,7 @@ type overview struct {
 
 func registerOverview(s *mcp.Server, dl dlService, oe openeduService, mail mailService) {
 	mcp.AddTool(s, &mcp.Tool{Name: "study_overview", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
-		Description: "One-call summary of the semester: dl.spbstu.ru deadlines (with recently overdue ones), progress " +
+		Description: "One-call summary of the semester: deadlines from all supported SPbPU Moodle sites (with recently overdue ones), progress " +
 			"in current openedu.ru courses and unread university mail. Each source that fails is reported in errors."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in overviewIn) (*mcp.CallToolResult, any, error) {
 			ahead := in.DaysAhead
@@ -53,12 +53,19 @@ func registerOverview(s *mcp.Server, dl dlService, oe openeduService, mail mailS
 				out.Errors[source] = err.Error()
 			}
 			wg.Go(func() {
-				v, err := dl.Deadlines(ctx, 30, ahead)
-				if err != nil {
-					fail("dl", err)
-					return
+				for _, site := range moodle.Sites {
+					siteCtx, err := withMoodleSite(ctx, site)
+					if err != nil {
+						fail(site, err)
+						continue
+					}
+					v, err := dl.Deadlines(siteCtx, 30, ahead)
+					if err != nil {
+						fail(site, err)
+						continue
+					}
+					out.Deadlines = append(out.Deadlines, v...)
 				}
-				out.Deadlines = v
 			})
 			wg.Go(func() {
 				courses, err := oe.Courses(ctx, true)

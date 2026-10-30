@@ -36,6 +36,7 @@ func date(unix int64) string {
 }
 
 type Course struct {
+	Site      string `json:"site"`
 	ID        int    `json:"id"`
 	Name      string `json:"name"`
 	ShortName string `json:"shortname,omitempty"`
@@ -59,11 +60,12 @@ func (c *Client) Courses(ctx context.Context, current bool) ([]Course, error) {
 	}
 	now := time.Now().Unix()
 	out := make([]Course, 0, len(raw))
+	site, _ := c.site()
 	for _, r := range raw {
 		if current && r.EndDate != 0 && r.EndDate < now {
 			continue
 		}
-		out = append(out, Course{ID: r.ID, Name: strings.TrimSpace(r.FullName), ShortName: r.ShortName, Ended: date(r.EndDate)})
+		out = append(out, Course{Site: site, ID: r.ID, Name: strings.TrimSpace(r.FullName), ShortName: r.ShortName, Ended: date(r.EndDate)})
 	}
 	return out, nil
 }
@@ -137,6 +139,7 @@ func (c *Client) Contents(ctx context.Context, courseID int) ([]Section, error) 
 }
 
 type Deadline struct {
+	Site     string `json:"site"`
 	Due      string `json:"due"`
 	Course   string `json:"course"`
 	CourseID int    `json:"course_id"`
@@ -172,12 +175,13 @@ func (c *Client) Deadlines(ctx context.Context, daysBack, daysAhead int) ([]Dead
 		return nil, err
 	}
 	out := make([]Deadline, 0, len(raw.Events))
+	site, _ := c.site()
 	for _, e := range raw.Events {
 		name := e.ActivityName
 		if name == "" {
 			name = e.Name
 		}
-		out = append(out, Deadline{Due: date(e.TimeSort), Course: e.Course.FullName, CourseID: e.Course.ID, Activity: name, Kind: e.ActivityStr, URL: e.URL, Overdue: e.Overdue})
+		out = append(out, Deadline{Site: site, Due: date(e.TimeSort), Course: e.Course.FullName, CourseID: e.Course.ID, Activity: name, Kind: e.ActivityStr, URL: e.URL, Overdue: e.Overdue})
 	}
 	return out, nil
 }
