@@ -38,14 +38,14 @@ func TestClientSite(t *testing.T) {
 			wantClient:   "94d5f926-5aae-4320-b796-3eb79b4f7cb8",
 			wantRedirect: "https://lms.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
 		},
-		{
-			name:         "physics and mathematics",
-			site:         "dl-phmath.spbstu.ru",
-			wantURL:      "https://dl-phmath.spbstu.ru",
-			wantToken:    "moodle.dl-phmath.spbstu.ru.token",
-			wantClient:   "63a3d37e-5344-11ef-978a-50ebf62c78b1",
-			wantRedirect: "https://dl-phmath.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
-		},
+		//{
+		//	name:         "physics and mathematics",
+		//	site:         "dl-phmath.spbstu.ru",
+		//	wantURL:      "https://dl-phmath.spbstu.ru",
+		//	wantToken:    "moodle.dl-phmath.spbstu.ru.token",
+		//	wantClient:   "63a3d37e-5344-11ef-978a-50ebf62c78b1",
+		//	wantRedirect: "https://dl-phmath.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
+		//},
 		{
 			name:    "arbitrary host rejected",
 			site:    "example.com",

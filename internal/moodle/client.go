@@ -47,11 +47,11 @@ var siteConfigs = []siteConfig{
 		clientID:    "94d5f926-5aae-4320-b796-3eb79b4f7cb8",
 		redirectURL: "https://lms.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
 	},
-	{
-		host:        "dl-phmath.spbstu.ru",
-		clientID:    "63a3d37e-5344-11ef-978a-50ebf62c78b1",
-		redirectURL: "https://dl-phmath.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
-	},
+	//{
+	//	host:        "dl-phmath.spbstu.ru",
+	//	clientID:    "63a3d37e-5344-11ef-978a-50ebf62c78b1",
+	//	redirectURL: "https://dl-phmath.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
+	//},
 }
 
 // Sites lists the supported Moodle hosts in stable display order.
