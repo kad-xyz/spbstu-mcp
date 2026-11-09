@@ -47,7 +47,7 @@ https://github.com/user-attachments/assets/79137c69-5d3f-4270-9164-e509f88c3535
 | 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline, page text and attached files | |
 | 🗓 | **ruz.spbstu.ru**, the public timetable | weekly timetable of any group or teacher | |
 | 🧭 | **Everything at once** | `study_overview`: dl deadlines, openedu.ru progress and unread mail in one call | |
-| 🏛 | **my.spbstu.ru**, «Мой Политех» | record book grades with semester averages, study plan, this year's work plan | |
+| 🏛 | **my.spbstu.ru**, «Мой Политех» | record book grades with semester averages, study plan, this year's work plan, people search with study groups | |
 | 🔎 | **polyvsp.ru, polyphis.ru**, student answer bases | answers to test questions, with the source page | |
 
 ## Quick start
@@ -232,7 +232,7 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 </details>
 
 <details>
-<summary><b>my.spbstu.ru</b>: 5 tools</summary>
+<summary><b>my.spbstu.ru</b>: 6 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -241,6 +241,7 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 | `my_work_plan` | This year's work plan by semester: lecture, practice, lab and self-study hours. |
 | `my_record_books` | Record books, one per programme, with the group. |
 | `my_debts` | Academic debts: disciplines whose latest grade is failing, and past ones with no grade to check. |
+| `my_people` | Find a student or employee by name: institute and study group (e.g. a classmate's group). |
 
 </details>
 

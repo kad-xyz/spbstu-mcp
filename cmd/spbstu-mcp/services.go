@@ -70,6 +70,7 @@ type myService interface {
 	Grades(ctx context.Context, recordBook string, semester int) (*mypoly.Grades, error)
 	StudyPlan(ctx context.Context, recordBook string, semester int) ([]mypoly.Discipline, error)
 	WorkPlan(ctx context.Context, recordBook string, semester int) (map[string][]mypoly.Discipline, error)
+	SearchPeople(ctx context.Context, query string) ([]mypoly.Person, error)
 }
 
 var (

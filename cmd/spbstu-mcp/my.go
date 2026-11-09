@@ -11,6 +11,10 @@ type myIn struct {
 	RecordBook string `json:"record_book,omitempty" jsonschema:"record book id from my_record_books; defaults to the first"`
 }
 
+type peopleIn struct {
+	Query string `json:"query" jsonschema:"surname, full name or personnel number, at least 3 characters"`
+}
+
 type noIn struct{}
 
 func registerMy(s *mcp.Server, my myService) {
@@ -52,6 +56,17 @@ func registerMy(s *mcp.Server, my myService) {
 			"lecture, practice, lab and self-study hours."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in myIn) (*mcp.CallToolResult, any, error) {
 			v, err := my.WorkPlan(ctx, in.RecordBook, in.Semester)
+			if err != nil {
+				return nil, nil, err
+			}
+			return result(v)
+		})
+
+	mcp.AddTool(s, &mcp.Tool{Name: "my_people", Annotations: readOnly,
+		Description: "Find students and employees of the university by name on my.spbstu.ru (the messenger's directory): " +
+			"full name, institute and study group of a student. Use it to learn a classmate's group."},
+		func(ctx context.Context, _ *mcp.CallToolRequest, in peopleIn) (*mcp.CallToolResult, any, error) {
+			v, err := my.SearchPeople(ctx, in.Query)
 			if err != nil {
 				return nil, nil, err
 			}

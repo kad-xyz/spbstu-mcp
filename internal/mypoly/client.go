@@ -167,3 +167,43 @@ func (c *Client) Post(ctx context.Context, path string, payload, out any) error 
 	}
 	return json.Unmarshal(raw, out)
 }
+
+// PostForm sends a form to a signed-in page the way its jQuery code does (CSRF token in the
+// form and the header) and decodes the JSON answer.
+func (c *Client) PostForm(ctx context.Context, path string, form url.Values, out any) error {
+	// A GET of the page first signs in when needed and refreshes the CSRF cookie.
+	if _, err := c.Get(ctx, path); err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	base, _ := url.Parse(BaseURL)
+	csrf := ""
+	for _, ck := range c.client.Jar.Cookies(base) {
+		if ck.Name == "csrftoken" {
+			csrf = ck.Value
+		}
+	}
+	form.Set("csrfmiddlewaretoken", csrf)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, BaseURL+path, strings.NewReader(form.Encode()))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+	req.Header.Set("X-CSRFToken", csrf)
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Referer", BaseURL+path)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("my.spbstu.ru%s: HTTP %d: %.200s", path, resp.StatusCode, raw)
+	}
+	return json.Unmarshal(raw, out)
+}
