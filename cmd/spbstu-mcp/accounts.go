@@ -321,6 +321,9 @@ func (myProxy) StudyPlan(ctx context.Context, recordBook string, semester int) (
 func (myProxy) WorkPlan(ctx context.Context, recordBook string, semester int) (map[string][]mypoly.Discipline, error) {
 	return sess(ctx).my.WorkPlan(ctx, recordBook, semester)
 }
+func (myProxy) SearchPeople(ctx context.Context, query string) ([]mypoly.Person, error) {
+	return sess(ctx).my.SearchPeople(ctx, query)
+}
 
 var (
 	_ dlService      = dlProxy{}

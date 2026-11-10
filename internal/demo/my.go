@@ -57,3 +57,10 @@ func (My) WorkPlan(context.Context, string, int) (map[string][]mypoly.Discipline
 		{Name: "Б1.В.1.04 Базы данных", Hours: 180, Control: "экзамен", Lectures: 4, Labs: 4, SelfStudy: 80},
 	}}, nil
 }
+
+func (My) SearchPeople(context.Context, string) ([]mypoly.Person, error) {
+	return []mypoly.Person{
+		{ID: 100001, Name: "Иванов Иван Иванович", Kind: "student", Unit: "ИКНК", Group: "з5130000/00001"},
+		{ID: 100002, Name: "Иванова Мария Петровна", Kind: "student", Unit: "ФизМех", Group: "5030000/00002"},
+	}, nil
+}
