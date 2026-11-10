@@ -39,7 +39,7 @@ func main() {
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id, not its cmid: dl_search finds a forum by name with its instance_id, cheaper than reading all of dl_course_contents. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
-			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline, page text); openedu_problems reads a test's questions and openedu_answer_many saves or submits the answers to all of them in one call (openedu_answer for a single one; submitting spends an attempt); openedu_progress lists graded items only unless all is set; openedu_search finds a course run id in the catalog; timed exams are started and read with openedu_exam and finished with openedu_exam_finish; openedu_enroll enrolls in a course run; openedu_forum reads a course forum thread and openedu_forum_reply posts to it. schedule reads the public timetable. my_* tools read my.spbstu.ru: grades (record book), study and work plans, debts; my_people finds a student or employee by name with the study group (e.g. a classmate's group). For one discipline use study_subject. answers_* tools search the student answer bases polyvsp.ru and polyphis.ru." + accountRules + answersRules,
+			"openedu_* tools read the user's openedu.ru courses (progress, dates, outline, page text); openedu_problems reads a test's questions and openedu_answer_many saves or submits the answers to all of them in one call (openedu_answer for a single one; submitting spends an attempt); openedu_progress lists graded items only unless all is set; openedu_search finds a course run id in the catalog; timed exams are started and read with openedu_exam and finished with openedu_exam_finish; openedu_enroll enrolls in a course run; openedu_forum reads a course forum thread and openedu_forum_reply posts to it. If openedu_courses lacks courses the user sees on openedu.ru, or a course answers \"not enrolled\", the user may sign in to openedu.ru with email and password, a separate openedu.ru account: openedu_login switches to it. schedule reads the public timetable. my_* tools read my.spbstu.ru: grades (record book), study and work plans, debts; my_people finds a student or employee by name with the study group (e.g. a classmate's group). For one discipline use study_subject. answers_* tools search the student answer bases polyvsp.ru and polyphis.ru." + accountRules + answersRules,
 	})
 	server.AddReceivingMiddleware(accts.middleware)
 	var (
@@ -53,6 +53,7 @@ func main() {
 	registerDLWrite(server, dlSvc)
 	registerMail(server, mailSvc, *downloads)
 	registerOpenEdu(server, oeSvc)
+	registerOpenEduLogin(server, accts, oeSvc)
 	registerOverview(server, dlSvc, oeSvc, mailSvc)
 	registerSchedule(server, *group)
 	registerAnswers(server, answers.Default())

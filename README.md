@@ -161,6 +161,16 @@ On Linux and Windows `account_add` returns the `secret-tool` or `cmdkey` command
 call `account_add` again. The accounts live under the same credential store service, one item per account (on Windows,
 an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 
+## Two openedu.ru accounts
+
+openedu.ru keeps the account you reach with the «Политех» button apart from the one you sign in to with email and
+password, each with its own courses. The server signs in through «Политех». If your courses are in the email account,
+ask *"sign in to openedu.ru as ivanov@example.com"*: `openedu_login` asks for that account's openedu.ru password in a
+system dialog (macOS), keeps it in the credential store under the service `spbstu-openedu`, one item per email, and
+checks it with one sign-in. The choice is remembered for the active university account; `openedu_login` without an
+email goes back to «Политех». A course that answers `User not enrolled` says which openedu.ru account the server is
+signed in to.
+
 ## Tools
 
 <details open>
@@ -255,7 +265,7 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 </details>
 
 <details>
-<summary><b>openedu.ru</b>: 14 tools</summary>
+<summary><b>openedu.ru</b>: 15 tools</summary>
 
 | Tool | Description |
 |---|---|
@@ -273,6 +283,7 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 | `openedu_forum` | A course forum thread: its text and every response. Takes the thread link. |
 | `openedu_forum_reply` ✍️ | Posts a response to a course forum thread. Confirm with the user first. |
 | `openedu_exam_finish` ✍️ | Finishes the running attempt of a timed exam. Confirm with the user first. |
+| `openedu_login` | Signs in to openedu.ru with an openedu.ru email and password instead of «Политех» (the password is typed into a system dialog on macOS); without an email, back to «Политех». See [Two openedu.ru accounts](#two-openeduru-accounts). |
 
 </details>
 
@@ -298,14 +309,14 @@ flowchart LR
     K[(OS credential store<br/>item "spbstu")] -. login + password .-> S
     S -- SSO --> CAS[cas.spbstu.ru]
     CAS --> DL[dl.spbstu.ru<br/>Moodle mobile API]
-    S -- SSO --> KC[sso.openedu.ru<br/>«Политех» provider] --> CAS
+    S -- SSO --> KC[sso.openedu.ru<br/>«Политех» provider<br/>or email + password] --> CAS
     KC --> OE[courses.openedu.ru<br/>Open edX API]
     S -- EWS, Basic auth over TLS --> M[mail.spbstu.ru<br/>Exchange]
     S <-. sessions .-> ST[(~/.config/spbstu-mcp/accounts<br/>one state.json per account, 0600)]
 ```
 
 - **dl.spbstu.ru**: signs in through the university SSO and obtains a Moodle mobile web service token, the same way the official Moodle app does.
-- **openedu.ru**: signs in through the «Политех» identity provider of the openedu.ru SSO, then reads the Open edX course APIs.
+- **openedu.ru**: signs in through the «Политех» identity provider of the openedu.ru SSO, or with an openedu.ru email and password after `openedu_login`, then reads the Open edX course APIs.
 - **Mail**: Exchange Web Services with the same account.
 - **my.spbstu.ru**: its own sign-in form, then the JSON endpoints its pages use.
 - **Answer bases**: public pages, cached for a week in `~/.config/spbstu-mcp/answers`; when polyvsp.ru is down its web.archive.org copy is read.
@@ -339,6 +350,7 @@ flowchart LR
 | `CAS rejected the credentials` | Check the stored password length; re-create the item with `-w` last. |
 | `mail.spbstu.ru rejected the credentials` | The keychain account must be the full address, `LOGIN@edu.spbstu.ru`. |
 | `refused: account is …, but the active account is …` | A write was asked as another account. Switch with `account_switch` if that is what you meant. |
+| `User not enrolled` for a course you see on openedu.ru | The course is in your other openedu.ru account, see [Two openedu.ru accounts](#two-openeduru-accounts). |
 | Sign-in keeps failing after many attempts | The site may have locked sign-ins for a while. Wait, then try once. |
 | macOS: *"cannot be opened because the developer cannot be verified"* | `xattr -d com.apple.quarantine ~/.local/bin/spbstu-mcp` |
 
