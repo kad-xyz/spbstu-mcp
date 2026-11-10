@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 )
 
 require (
