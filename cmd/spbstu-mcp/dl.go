@@ -7,44 +7,44 @@ import (
 )
 
 type coursesIn struct {
-	Site string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	All  bool   `json:"all,omitempty" jsonschema:"include courses past their end date"`
 }
 
 type courseIn struct {
-	Site     string `json:"site,omitempty" jsonschema:"Moodle host returned by dl_courses; default dl.spbstu.ru"`
+	Site     string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	CourseID int    `json:"course_id" jsonschema:"course id from dl_courses"`
 }
 
 type deadlinesIn struct {
-	Site      string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site      string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	DaysBack  int    `json:"days_back,omitempty" jsonschema:"also show overdue items up to this many days back (default 30)"`
 	DaysAhead int    `json:"days_ahead,omitempty" jsonschema:"how far ahead to look (default 120)"`
 }
 
 type assignIn struct {
-	Site     string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site     string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	AssignID int    `json:"assign_id" jsonschema:"assign_id from dl_assignments"`
 }
 
 type forumIn struct {
-	Site    string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site    string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	ForumID int    `json:"forum_id" jsonschema:"instance_id of a forum module from dl_search or dl_course_contents"`
 }
 
 type discussionIn struct {
-	Site         string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site         string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	DiscussionID int    `json:"discussion_id" jsonschema:"discussion_id from dl_forum_discussions"`
 }
 
 type pageIn struct {
-	Site     string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site     string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	CourseID int    `json:"course_id" jsonschema:"course id"`
 	CMID     int    `json:"cmid" jsonschema:"cmid of a page module from dl_course_contents"`
 }
 
 type downloadIn struct {
-	Site string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	URL  string `json:"url" jsonschema:"file url from dl_course_contents, dl_assignments or a forum post"`
 }
 
@@ -52,7 +52,7 @@ func registerDL(s *mcp.Server, dl dlService, downloads string) {
 	readOnly := &mcp.ToolAnnotations{ReadOnlyHint: true}
 
 	mcp.AddTool(s, &mcp.Tool{Name: "dl_courses", Annotations: readOnly,
-		Description: "List the user's courses on an SPbPU Moodle site (dl.spbstu.ru by default; current ones unless all is set)."},
+		Description: "List the user's courses on an SPbPU Moodle site (the default one unless site is given; current courses unless all is set)."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in coursesIn) (*mcp.CallToolResult, any, error) {
 			ctx, err := withMoodleSite(ctx, in.Site)
 			if err != nil {

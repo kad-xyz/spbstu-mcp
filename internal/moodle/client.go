@@ -47,14 +47,10 @@ var siteConfigs = []siteConfig{
 		clientID:    "94d5f926-5aae-4320-b796-3eb79b4f7cb8",
 		redirectURL: "https://lms.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
 	},
-	//{
-	//	host:        "dl-phmath.spbstu.ru",
-	//	clientID:    "63a3d37e-5344-11ef-978a-50ebf62c78b1",
-	//	redirectURL: "https://dl-phmath.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
-	//},
 }
 
-// Sites lists the supported Moodle hosts in stable display order.
+// Sites lists the known Moodle hosts in stable display order; the server uses the ones
+// enabled with -moodle-sites.
 var Sites = func() []string {
 	sites := make([]string, 0, len(siteConfigs))
 	for _, config := range siteConfigs {
@@ -62,6 +58,19 @@ var Sites = func() []string {
 	}
 	return sites
 }()
+
+// Known reports whether site is one of Sites.
+func Known(site string) bool {
+	for _, s := range Sites {
+		if s == site {
+			return true
+		}
+	}
+	return false
+}
+
+// ErrNoSession means the site has no saved token, so using it would sign in through the SSO.
+var ErrNoSession = errors.New("no saved session yet")
 
 // Client is a lazily authenticated Moodle web service client. It signs in through the SPbPU
 // SSO with the keychain credentials on first use and again whenever the token stops working.
@@ -77,6 +86,42 @@ type Client struct {
 	mu     sync.Mutex
 	token  string
 	userID int
+	// refused is the error of a sign-in the SSO let through but the site itself turned
+	// down. It is kept for the life of the process: trying again only sends the password
+	// to the SSO once more, and frequent sign-ins get the login locked.
+	refused error
+}
+
+// Ready says whether the client can be used without a new sign-in: nil when it holds or has
+// saved a token, ErrNoSession when it has none, or the error of the site's refused sign-in.
+func (c *Client) Ready() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.refused != nil {
+		return c.refused
+	}
+	if c.token != "" || c.savedToken() != "" {
+		return nil
+	}
+	return ErrNoSession
+}
+
+// savedToken is the token kept in the state store, if any.
+func (c *Client) savedToken() string {
+	if c.State == nil {
+		return ""
+	}
+	key, err := c.tokenKey()
+	if err != nil {
+		return ""
+	}
+	token := c.State.Get(key)
+	// Keep existing installations from signing in again after the token key became
+	// site-specific. New tokens are always written under the new key.
+	if token == "" && (c.Site == "" || c.Site == DefaultSite) {
+		token = c.State.Get("dl.token")
+	}
+	return token
 }
 
 func (c *Client) site() (string, error) {
@@ -273,25 +318,31 @@ func (c *Client) session(ctx context.Context) (string, error) {
 	var info struct {
 		UserID int `json:"userid"`
 	}
+	if c.refused != nil {
+		return "", c.refused
+	}
 	tokenKey, err := c.tokenKey()
 	if err != nil {
 		return "", err
 	}
-	if c.State != nil {
-		token := c.State.Get(tokenKey)
-		// Keep existing installations from signing in again after the token key became
-		// site-specific. New tokens are always written under the new key.
-		if token == "" && (c.Site == "" || c.Site == DefaultSite) {
-			token = c.State.Get("dl.token")
+	if token := c.savedToken(); token != "" {
+		err := c.call(ctx, token, "core_webservice_get_site_info", nil, &info)
+		if err == nil && info.UserID != 0 {
+			c.token, c.userID = token, info.UserID
+			return token, nil
 		}
-		if token != "" {
-			if c.call(ctx, token, "core_webservice_get_site_info", nil, &info) == nil && info.UserID != 0 {
-				c.token, c.userID = token, info.UserID
-				return token, nil
-			}
+		// An unreachable site says nothing about the token; signing in would only send the
+		// password to the SSO once more.
+		var netErr *url.Error
+		if errors.As(err, &netErr) {
+			return "", err
 		}
 	}
 	token, err := c.signIn(ctx)
+	var refused *refusedError
+	if errors.As(err, &refused) {
+		c.refused = err
+	}
 	if err != nil {
 		return "", err
 	}
@@ -339,6 +390,31 @@ func (c *Client) signIn(ctx context.Context) (string, error) {
 	if _, err := cas.Login(ctx, client, authorizeURL, creds.Login(), creds.Password); err != nil {
 		return "", err
 	}
+	token, err := launch(ctx, jar, launchURL, site)
+	var netErr *url.Error
+	if errors.As(err, &netErr) {
+		return "", err // the site was not reached; a later call may try again
+	}
+	if err != nil {
+		return "", &refusedError{site: site, err: err}
+	}
+	return token, nil
+}
+
+// refusedError is a sign-in the SSO accepted and the Moodle site did not complete.
+type refusedError struct {
+	site string
+	err  error
+}
+
+func (e *refusedError) Error() string {
+	return e.site + " refused the sign-in (not retried until the server restarts): " + e.err.Error()
+}
+
+func (e *refusedError) Unwrap() error { return e.err }
+
+// launch asks the mobile app launcher of a site, with the SSO cookies in jar, for a token.
+func launch(ctx context.Context, jar http.CookieJar, launchURL, site string) (string, error) {
 	noRedirect := &http.Client{Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, launchURL, nil)
 	if err != nil {

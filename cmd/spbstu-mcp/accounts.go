@@ -26,10 +26,12 @@ const demoAccount = "ivanov.ii@edu.spbstu.ru"
 // belong to the same person even if the account is switched meanwhile.
 type session struct {
 	account string
-	dl      map[string]dlService
-	oe      openeduService
-	mail    mailService
-	my      myService
+	// sites are the enabled Moodle hosts, the default one first; dl holds a client for each.
+	sites []string
+	dl    map[string]dlService
+	oe    openeduService
+	mail  mailService
+	my    myService
 }
 
 // accountSet keeps a session per account and knows which account is active.
@@ -37,19 +39,26 @@ type accountSet struct {
 	reg     *accounts.Registry
 	service string // credential store service holding the passwords
 	demo    bool
+	sites   []string // enabled Moodle hosts, the default one first
 
 	mu       sync.Mutex
 	sessions map[string]*session
 }
 
-func newAccountSet(reg *accounts.Registry, service string, demoMode bool) *accountSet {
-	return &accountSet{reg: reg, service: service, demo: demoMode, sessions: map[string]*session{}}
+func newAccountSet(reg *accounts.Registry, service string, demoMode bool, sites []string) *accountSet {
+	if len(sites) == 0 {
+		sites = []string{moodle.DefaultSite}
+	}
+	return &accountSet{reg: reg, service: service, demo: demoMode, sites: sites, sessions: map[string]*session{}}
 }
 
 // active returns the session of the active account.
 func (a *accountSet) active() (*session, error) {
 	if a.demo {
-		return &session{account: demoAccount, dl: map[string]dlService{moodle.DefaultSite: demo.DL{}}, oe: demo.OpenEdu{}, mail: demo.Mail{}, my: demo.My{}}, nil
+		// The made-up courses live on the default site only.
+		site := a.sites[0]
+		return &session{account: demoAccount, sites: []string{site}, dl: map[string]dlService{site: demo.DL{}},
+			oe: demo.OpenEdu{}, mail: demo.Mail{}, my: demo.My{}}, nil
 	}
 	account, err := a.reg.Active()
 	if err != nil {
@@ -66,12 +75,13 @@ func (a *accountSet) session(account string) *session {
 		return s
 	}
 	store := a.reg.Store(account)
-	dl := make(map[string]dlService, len(moodle.Sites))
-	for _, site := range moodle.Sites {
+	dl := make(map[string]dlService, len(a.sites))
+	for _, site := range a.sites {
 		dl[site] = &moodle.Client{Site: site, KeychainService: a.service, KeychainAccount: account, State: store}
 	}
 	s := &session{
 		account: account,
+		sites:   a.sites,
 		dl:      dl,
 		oe:      &openedu.Client{KeychainService: a.service, KeychainAccount: account, State: store},
 		mail:    &ews.Client{KeychainService: a.service, KeychainAccount: account},
@@ -155,24 +165,59 @@ type dlProxy struct{}
 
 type moodleSiteKey struct{}
 
+// withMoodleSite picks the Moodle site the dl calls on ctx go to; "" is the default one.
 func withMoodleSite(ctx context.Context, site string) (context.Context, error) {
+	s := sess(ctx)
 	if site == "" {
-		site = moodle.DefaultSite
+		site = s.sites[0]
 	}
-	for _, allowed := range moodle.Sites {
-		if site == allowed {
-			return context.WithValue(ctx, moodleSiteKey{}, site), nil
+	if _, ok := s.dl[site]; !ok {
+		hint := ""
+		if moodle.Known(site) {
+			hint = "; add it to -moodle-sites (or SPBSTU_MOODLE_SITES) in the MCP server config"
 		}
+		return nil, fmt.Errorf("Moodle site %q is not enabled; enabled: %s%s", site, strings.Join(s.sites, ", "), hint)
 	}
-	return nil, fmt.Errorf("unsupported Moodle site %q; supported sites: %s", site, strings.Join(moodle.Sites, ", "))
+	return context.WithValue(ctx, moodleSiteKey{}, site), nil
 }
 
 func dlFor(ctx context.Context) dlService {
+	s := sess(ctx)
 	site, _ := ctx.Value(moodleSiteKey{}).(string)
 	if site == "" {
-		site = moodle.DefaultSite
+		site = s.sites[0]
 	}
-	return sess(ctx).dl[site]
+	return s.dl[site]
+}
+
+// readySites are the enabled Moodle sites that study_* tools, which gather from every site,
+// may call. They are the sites with a saved session, plus the default site, which may sign in.
+// Other sites sign in only through a dl_* call naming them, and a site that refused a sign-in
+// is left out, so that a summary never sends the password to the SSO again and again.
+// skipped tells why each site left out was.
+func readySites(ctx context.Context) (sites []string, skipped map[string]string) {
+	s := sess(ctx)
+	for i, site := range s.sites {
+		r, ok := s.dl[site].(interface{ Ready() error })
+		if !ok {
+			sites = append(sites, site)
+			continue
+		}
+		switch err := r.Ready(); {
+		case err == nil, i == 0 && errors.Is(err, moodle.ErrNoSession):
+			sites = append(sites, site)
+		default:
+			if skipped == nil {
+				skipped = map[string]string{}
+			}
+			if errors.Is(err, moodle.ErrNoSession) {
+				skipped[site] = "not signed in yet: call a dl_* tool with site=" + site + " once"
+			} else {
+				skipped[site] = err.Error()
+			}
+		}
+	}
+	return sites, skipped
 }
 
 func (dlProxy) Courses(ctx context.Context, current bool) ([]moodle.Course, error) {
@@ -418,11 +463,11 @@ func registerAccounts(s *mcp.Server, a *accountSet) {
 			if err := a.reg.Add(account); err != nil {
 				return nil, nil, err
 			}
-			// One sign-in to dl.spbstu.ru checks the password; its token stays in the new store.
+			// One sign-in to the default Moodle site checks the password; its token stays in the new store.
 			a.mu.Lock()
 			check := a.session(account)
 			a.mu.Unlock()
-			if _, err := check.dl[moodle.DefaultSite].Courses(ctx, true); err != nil {
+			if _, err := check.dl[check.sites[0]].Courses(ctx, true); err != nil {
 				a.forget(account)
 				_ = a.reg.Remove(account)
 				if saved {

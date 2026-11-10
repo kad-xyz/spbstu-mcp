@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/79137c69-5d3f-4270-9164-e509f88c3535
 
 | | Service | Read | Write |
 |---|---|---|---|
-| 🎓 | **dl.spbstu.ru**, **dl-hum.spbstu.ru**, **lms.spbstu.ru**, **dl-phmath.spbstu.ru**, the Moodle LMS installations | courses, course contents, assignments with full task text, deadlines, submission status and feedback, grades, forums, pages, files | submit work to an assignment, post to forums with attachments |
+| 🎓 | **dl.spbstu.ru**, the Moodle LMS (and, with `-moodle-sites`, **dl-hum.spbstu.ru** and **lms.spbstu.ru**) | courses, course contents, assignments with full task text, deadlines, submission status and feedback, grades, forums, pages, files | submit work to an assignment, post to forums with attachments |
 | ✉️ | **mail.spbstu.ru**, Exchange | list and search mail, read messages, save attachments | write new messages and replies (saved as drafts by default), delete |
 | 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline, page text and attached files | |
 | 🗓 | **ruz.spbstu.ru**, the public timetable | weekly timetable of any group or teacher | |
@@ -180,7 +180,7 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 
 | Tool | Description |
 |---|---|
-| `study_overview` | Deadlines from all supported Moodle sites (with recently overdue ones), progress in current openedu.ru courses and unread mail. A source that fails is reported, the rest still come back. |
+| `study_overview` | Deadlines from the enabled Moodle sites, soonest first (with recently overdue ones), progress in current openedu.ru courses and unread mail. A source that fails is reported, the rest still come back. |
 | `study_subject` | Everything about one discipline: work-plan hours and control type, the dl course with assignments, quizzes, deadlines and teachers, grades received. |
 | `study_export_ics` | Every upcoming dl and openedu due date as an `.ics` file with day-before reminders, for Apple, Google or Outlook Calendar. |
 
@@ -189,9 +189,10 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 <details>
 <summary><b>SPbPU Moodle sites</b>: 20 tools</summary>
 
-Every `dl_*` tool accepts an optional `site` (`dl.spbstu.ru` by default). Pass through the `site` returned by
-`dl_courses`, `dl_deadlines`, or `dl_search` when using an id with another tool. Supported values are
-`dl.spbstu.ru`, `dl-hum.spbstu.ru`, `lms.spbstu.ru`, and `dl-phmath.spbstu.ru`.
+Every `dl_*` tool accepts an optional `site`, one of the sites enabled with `-moodle-sites` (the first one by default).
+Pass through the `site` returned by `dl_courses`, `dl_deadlines` or `dl_search` when using an id with another tool.
+`study_*` tools gather from the default site and from the sites already signed in to; another site signs in on the
+first `dl_*` call naming it.
 
 | Tool | Description |
 |---|---|
@@ -333,6 +334,7 @@ flowchart LR
 | `-keychain-service` | `spbstu` | Name of the credential store service with the university logins, one item per account. |
 | `-downloads` | `~/Downloads/spbstu` | Where downloaded files and attachments are saved. |
 | `-group` | | Default group for `schedule`, e.g. `5130902/30201`. |
+| `-moodle-sites` | `dl.spbstu.ru` | Comma-separated Moodle sites to use, the default one first: `dl.spbstu.ru`, `dl-hum.spbstu.ru`, `lms.spbstu.ru`. Also read from `SPBSTU_MOODLE_SITES`. |
 | `-demo` | `false` | Serve made-up data instead of the university services; no credentials needed. |
 
 ## Troubleshooting

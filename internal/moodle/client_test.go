@@ -1,8 +1,14 @@
 package moodle
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"net/url"
+	"path/filepath"
 	"testing"
+
+	"github.com/kad-xyz/spbstu-mcp/internal/state"
 )
 
 func TestClientSite(t *testing.T) {
@@ -38,14 +44,6 @@ func TestClientSite(t *testing.T) {
 			wantClient:   "94d5f926-5aae-4320-b796-3eb79b4f7cb8",
 			wantRedirect: "https://lms.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
 		},
-		//{
-		//	name:         "physics and mathematics",
-		//	site:         "dl-phmath.spbstu.ru",
-		//	wantURL:      "https://dl-phmath.spbstu.ru",
-		//	wantToken:    "moodle.dl-phmath.spbstu.ru.token",
-		//	wantClient:   "63a3d37e-5344-11ef-978a-50ebf62c78b1",
-		//	wantRedirect: "https://dl-phmath.spbstu.ru/auth/spbstu/redirect.php?auth_service=spbstu_oauth2",
-		//},
 		{
 			name:    "arbitrary host rejected",
 			site:    "example.com",
@@ -85,5 +83,57 @@ func TestClientSite(t *testing.T) {
 				t.Errorf("OAuth redirect_uri = %q, want %q", got, tt.wantRedirect)
 			}
 		})
+	}
+}
+
+func TestReady(t *testing.T) {
+	store := &state.Store{Path: filepath.Join(t.TempDir(), "state.json")}
+	c := &Client{Site: "lms.spbstu.ru", State: store}
+	if err := c.Ready(); !errors.Is(err, ErrNoSession) {
+		t.Fatalf("Ready without a token = %v", err)
+	}
+	if err := store.Set("moodle.lms.spbstu.ru.token", "t"); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Ready(); err != nil {
+		t.Fatalf("Ready with a saved token = %v", err)
+	}
+	legacy := &Client{State: &state.Store{Path: filepath.Join(t.TempDir(), "state.json")}}
+	_ = legacy.State.Set("dl.token", "t")
+	if err := legacy.Ready(); err != nil {
+		t.Fatalf("Ready with the old dl.token = %v", err)
+	}
+}
+
+// A site that refused a sign-in is not signed in to again: the password would go to the SSO
+// once more for nothing.
+func TestRefusedSignInIsKept(t *testing.T) {
+	refused := &refusedError{site: "lms.spbstu.ru", err: errors.New("no token")}
+	c := &Client{Site: "lms.spbstu.ru", KeychainService: "spbstu-mcp-test-none", refused: refused}
+	if _, err := c.session(context.Background()); !errors.Is(err, refused) {
+		t.Fatalf("session = %v, want the kept refusal", err)
+	}
+	if err := c.Ready(); !errors.Is(err, refused) {
+		t.Fatalf("Ready = %v", err)
+	}
+}
+
+type downTransport struct{}
+
+func (downTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("i/o timeout")
+}
+
+// While a site is down a saved token cannot be checked, and signing in would not help.
+func TestUnreachableSiteDoesNotSignIn(t *testing.T) {
+	old := http.DefaultClient.Transport
+	http.DefaultClient.Transport = downTransport{}
+	t.Cleanup(func() { http.DefaultClient.Transport = old })
+	c := &Client{KeychainService: "spbstu-mcp-test-none", State: &state.Store{Path: filepath.Join(t.TempDir(), "state.json")}}
+	_ = c.State.Set("moodle.dl.spbstu.ru.token", "t")
+	_, err := c.session(context.Background())
+	var netErr *url.Error
+	if !errors.As(err, &netErr) {
+		t.Fatalf("session = %v, want the network error without a sign-in", err)
 	}
 }

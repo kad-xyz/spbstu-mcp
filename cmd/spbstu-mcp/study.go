@@ -128,7 +128,7 @@ func registerStudy(s *mcp.Server, dl dlService, oe openeduService, my myService,
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "study_subject", Annotations: readOnly,
-		Description: "Everything about one discipline in one call: work-plan hours and control type, the dl course with its " +
+		Description: "Everything about one discipline in one call: work-plan hours and control type, the Moodle course with its " +
 			"assignments, quizzes, deadlines and teachers, and the grades already received."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in subjectIn) (*mcp.CallToolResult, any, error) {
 			words := strings.Fields(strings.ToLower(in.Query))
@@ -173,9 +173,13 @@ func registerStudy(s *mcp.Server, dl dlService, oe openeduService, my myService,
 				}
 				set("grades", hits, err)
 			})
+			sites, skipped := readySites(ctx)
+			if skipped != nil {
+				out["dl_skipped"] = skipped
+			}
 			wg.Go(func() {
 				var cards []map[string]any
-				for _, site := range moodle.Sites {
+				for _, site := range sites {
 					siteCtx, err := withMoodleSite(ctx, site)
 					if err != nil {
 						set(site, nil, err)
@@ -225,25 +229,38 @@ func registerStudy(s *mcp.Server, dl dlService, oe openeduService, my myService,
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "study_export_ics", Annotations: &mcp.ToolAnnotations{IdempotentHint: true},
-		Description: "Write every upcoming deadline from all supported SPbPU Moodle sites and openedu.ru into an .ics file (with a reminder a " +
-			"day before) and return its path; opening it imports the events into Apple, Google or Outlook Calendar."},
+		Description: "Write every upcoming deadline from the enabled SPbPU Moodle sites and openedu.ru into an .ics file (with a reminder a " +
+			"day before) and return its path; opening it imports the events into Apple, Google or Outlook Calendar. " +
+			"Sources that could not be read are listed in errors, so the calendar may be missing their dates."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in icsIn) (*mcp.CallToolResult, any, error) {
 			ahead := orDefault(in.DaysAhead, 120)
 			var events []icsEvent
-			for _, site := range moodle.Sites {
+			errs := map[string]string{}
+			sites, skipped := readySites(ctx)
+			for site, why := range skipped {
+				errs[site] = why
+			}
+			for _, site := range sites {
 				siteCtx, err := withMoodleSite(ctx, site)
-				if err != nil {
-					return nil, nil, err
+				var deadlines []moodle.Deadline
+				if err == nil {
+					deadlines, err = dl.Deadlines(siteCtx, 0, ahead)
 				}
-				deadlines, err := dl.Deadlines(siteCtx, 0, ahead)
 				if err != nil {
+					errs[site] = err.Error()
 					continue
 				}
+				suffix := ""
+				if len(sess(ctx).sites) > 1 {
+					suffix = " (" + site + ")"
+				}
 				for _, d := range deadlines {
-					events = append(events, icsEvent{Title: d.Activity + " — " + d.Course + " (" + site + ")", When: d.Due, URL: d.URL, Note: d.Kind})
+					events = append(events, icsEvent{Title: d.Activity + " — " + d.Course + suffix, When: d.Due, URL: d.URL, Note: d.Kind})
 				}
 			}
-			if courses, err := oe.Courses(ctx, true); err == nil {
+			if courses, err := oe.Courses(ctx, true); err != nil {
+				errs["openedu"] = err.Error()
+			} else {
 				for _, c := range courses {
 					dates, err := oe.Dates(ctx, c.ID)
 					if err != nil {
@@ -265,7 +282,11 @@ func registerStudy(s *mcp.Server, dl dlService, oe openeduService, my myService,
 			if err != nil {
 				return nil, nil, err
 			}
-			return result(map[string]any{"path": path, "events": n})
+			out := map[string]any{"path": path, "events": n}
+			if len(errs) > 0 {
+				out["errors"] = errs
+			}
+			return result(out)
 		})
 }
 

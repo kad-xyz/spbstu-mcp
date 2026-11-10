@@ -10,7 +10,7 @@ import (
 const confirmFirst = " Act ONLY after showing the user exactly what will be sent where and getting their explicit confirmation."
 
 type submitIn struct {
-	Site     string   `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site     string   `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	Account  string   `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
 	AssignID int      `json:"assign_id" jsonschema:"assign_id from dl_assignments"`
 	Files    []string `json:"files,omitempty" jsonschema:"absolute paths of local files; they REPLACE every file already in the submission"`
@@ -19,7 +19,7 @@ type submitIn struct {
 }
 
 type discussionNewIn struct {
-	Site    string   `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site    string   `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	Account string   `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
 	ForumID int      `json:"forum_id" jsonschema:"instance_id of the forum from dl_search or dl_course_contents"`
 	Subject string   `json:"subject" jsonschema:"discussion subject, e.g. the user's full name and group for upload forums"`
@@ -28,7 +28,7 @@ type discussionNewIn struct {
 }
 
 type replyIn struct {
-	Site    string   `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site    string   `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	Account string   `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
 	PostID  int      `json:"post_id" jsonschema:"post_id from dl_discussion_posts"`
 	Subject string   `json:"subject" jsonschema:"reply subject, usually Re: of the post"`

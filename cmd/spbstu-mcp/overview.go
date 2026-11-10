@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"sort"
 	"sync"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -28,11 +29,13 @@ type overview struct {
 	OpenEdu   []oeSummary       `json:"openedu_courses"`
 	Unread    []ews.Message     `json:"unread_mail"`
 	Errors    map[string]string `json:"errors,omitempty"`
+	// Skipped are the enabled Moodle sites not asked, with the reason.
+	Skipped map[string]string `json:"dl_skipped,omitempty"`
 }
 
 func registerOverview(s *mcp.Server, dl dlService, oe openeduService, mail mailService) {
 	mcp.AddTool(s, &mcp.Tool{Name: "study_overview", Annotations: &mcp.ToolAnnotations{ReadOnlyHint: true},
-		Description: "One-call summary of the semester: deadlines from all supported SPbPU Moodle sites (with recently overdue ones), progress " +
+		Description: "One-call summary of the semester: deadlines from the enabled SPbPU Moodle sites, soonest first (with recently overdue ones), progress " +
 			"in current openedu.ru courses and unread university mail. Each source that fails is reported in errors."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in overviewIn) (*mcp.CallToolResult, any, error) {
 			ahead := in.DaysAhead
@@ -52,20 +55,24 @@ func registerOverview(s *mcp.Server, dl dlService, oe openeduService, mail mailS
 				}
 				out.Errors[source] = err.Error()
 			}
+			sites, skipped := readySites(ctx)
+			out.Skipped = skipped
 			wg.Go(func() {
-				for _, site := range moodle.Sites {
+				var all []moodle.Deadline
+				for _, site := range sites {
 					siteCtx, err := withMoodleSite(ctx, site)
-					if err != nil {
-						fail(site, err)
-						continue
+					if err == nil {
+						var v []moodle.Deadline
+						if v, err = dl.Deadlines(siteCtx, 30, ahead); err == nil {
+							all = append(all, v...)
+							continue
+						}
 					}
-					v, err := dl.Deadlines(siteCtx, 30, ahead)
-					if err != nil {
-						fail(site, err)
-						continue
-					}
-					out.Deadlines = append(out.Deadlines, v...)
+					fail(site, err)
 				}
+				// "YYYY-MM-DD HH:MM" sorts as time does.
+				sort.SliceStable(all, func(i, j int) bool { return all[i].Due < all[j].Due })
+				out.Deadlines = all
 			})
 			wg.Go(func() {
 				courses, err := oe.Courses(ctx, true)

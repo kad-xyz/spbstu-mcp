@@ -7,24 +7,24 @@ import (
 )
 
 type limitIn struct {
-	Site  string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site  string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	Limit int    `json:"limit,omitempty" jsonschema:"how many (default 20)"`
 }
 
 type conversationIn struct {
-	Site           string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site           string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	ConversationID int    `json:"conversation_id" jsonschema:"conversation_id from dl_messages"`
 }
 
 type sendMessageIn struct {
-	Site    string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site    string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	Account string `json:"account" jsonschema:"the account this acts as: must be the active one, from the «Аккаунт:» line of replies or account_list"`
 	UserID  int    `json:"user_id" jsonschema:"recipient's user_id, from dl_teachers or dl_messages"`
 	Text    string `json:"text" jsonschema:"plain-text message"`
 }
 
 type searchIn struct {
-	Site  string `json:"site,omitempty" jsonschema:"Moodle host; default dl.spbstu.ru"`
+	Site  string `json:"site,omitempty" jsonschema:"Moodle site host returned with the id; default: the first enabled site"`
 	Query string `json:"query" jsonschema:"words to find in activity names, descriptions and file names"`
 	All   bool   `json:"all,omitempty" jsonschema:"also search courses that have ended"`
 }
