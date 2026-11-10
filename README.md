@@ -4,7 +4,7 @@
 
 **Your Peter the Great St. Petersburg Polytechnic University (SPbPU) studies, available to Claude.**
 
-An [MCP](https://modelcontextprotocol.io) server for SPbPU student services: the dl.spbstu.ru Moodle,
+An [MCP](https://modelcontextprotocol.io) server for SPbPU student services: the university Moodle sites,
 the university mailbox, openedu.ru and the timetable. You sign in with your university account; your password stays in your
 operating system's credential store.
 
@@ -42,7 +42,7 @@ https://github.com/user-attachments/assets/79137c69-5d3f-4270-9164-e509f88c3535
 
 | | Service | Read | Write |
 |---|---|---|---|
-| 🎓 | **dl.spbstu.ru**, the Moodle LMS | courses, course contents, assignments with full task text, deadlines, submission status and feedback, grades, forums, pages, files | submit work to an assignment, post to forums with attachments |
+| 🎓 | **dl.spbstu.ru**, the Moodle LMS (and, with `-moodle-sites`, **dl-hum.spbstu.ru** and **lms.spbstu.ru**) | courses, course contents, assignments with full task text, deadlines, submission status and feedback, grades, forums, pages, files | submit work to an assignment, post to forums with attachments |
 | ✉️ | **mail.spbstu.ru**, Exchange | list and search mail, read messages, save attachments | write new messages and replies (saved as drafts by default), delete |
 | 📚 | **openedu.ru**, Open edX | enrolled courses, progress and grades, due dates, course outline, page text and attached files | |
 | 🗓 | **ruz.spbstu.ru**, the public timetable | weekly timetable of any group or teacher | |
@@ -180,14 +180,19 @@ an extra account is the generic credential `spbstu:LOGIN@edu.spbstu.ru`).
 
 | Tool | Description |
 |---|---|
-| `study_overview` | dl.spbstu.ru deadlines (with recently overdue ones), progress in current openedu.ru courses and unread mail. A source that fails is reported, the rest still come back. |
+| `study_overview` | Deadlines from the enabled Moodle sites, soonest first (with recently overdue ones), progress in current openedu.ru courses and unread mail. A source that fails is reported, the rest still come back. |
 | `study_subject` | Everything about one discipline: work-plan hours and control type, the dl course with assignments, quizzes, deadlines and teachers, grades received. |
 | `study_export_ics` | Every upcoming dl and openedu due date as an `.ics` file with day-before reminders, for Apple, Google or Outlook Calendar. |
 
 </details>
 
 <details>
-<summary><b>dl.spbstu.ru</b>: 20 tools</summary>
+<summary><b>SPbPU Moodle sites</b>: 20 tools</summary>
+
+Every `dl_*` tool accepts an optional `site`, one of the sites enabled with `-moodle-sites` (the first one by default).
+Pass through the `site` returned by `dl_courses`, `dl_deadlines` or `dl_search` when using an id with another tool.
+`study_*` tools gather from the default site and from the sites already signed in to; another site signs in on the
+first `dl_*` call naming it.
 
 | Tool | Description |
 |---|---|
@@ -297,14 +302,14 @@ flowchart LR
     C[Claude] -- MCP / stdio --> S[spbstu-mcp]
     K[(OS credential store<br/>item "spbstu")] -. login + password .-> S
     S -- SSO --> CAS[cas.spbstu.ru]
-    CAS --> DL[dl.spbstu.ru<br/>Moodle mobile API]
+    CAS --> DL[SPbPU Moodle sites<br/>mobile API]
     S -- SSO --> KC[sso.openedu.ru<br/>«Политех» provider] --> CAS
     KC --> OE[courses.openedu.ru<br/>Open edX API]
     S -- EWS, Basic auth over TLS --> M[mail.spbstu.ru<br/>Exchange]
     S <-. sessions .-> ST[(~/.config/spbstu-mcp/accounts<br/>one state.json per account, 0600)]
 ```
 
-- **dl.spbstu.ru**: signs in through the university SSO and obtains a Moodle mobile web service token, the same way the official Moodle app does.
+- **SPbPU Moodle sites**: each site signs in through the university SSO and keeps its own Moodle mobile web service token, the same way the official Moodle app does.
 - **openedu.ru**: signs in through the «Политех» identity provider of the openedu.ru SSO, then reads the Open edX course APIs.
 - **Mail**: Exchange Web Services with the same account.
 - **my.spbstu.ru**: its own sign-in form, then the JSON endpoints its pages use.
@@ -329,6 +334,7 @@ flowchart LR
 | `-keychain-service` | `spbstu` | Name of the credential store service with the university logins, one item per account. |
 | `-downloads` | `~/Downloads/spbstu` | Where downloaded files and attachments are saved. |
 | `-group` | | Default group for `schedule`, e.g. `5130902/30201`. |
+| `-moodle-sites` | `dl.spbstu.ru` | Comma-separated Moodle sites to use, the default one first: `dl.spbstu.ru`, `dl-hum.spbstu.ru`, `lms.spbstu.ru`. Also read from `SPBSTU_MOODLE_SITES`. |
 | `-demo` | `false` | Serve made-up data instead of the university services; no credentials needed. |
 
 ## Troubleshooting
@@ -354,7 +360,7 @@ go build -o bin/spbstu-mcp ./cmd/spbstu-mcp
 cmd/spbstu-mcp     MCP tools (dl, mail, openedu, overview, accounts)
 internal/accounts  added accounts, the active one, per-account session stores
 internal/cas       university SSO sign-in
-internal/moodle    dl.spbstu.ru client
+internal/moodle    SPbPU Moodle clients
 internal/ews       Exchange Web Services client
 internal/openedu   openedu.ru and Open edX client
 internal/mypoly    my.spbstu.ru client

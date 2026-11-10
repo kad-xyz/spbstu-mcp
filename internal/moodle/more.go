@@ -259,12 +259,14 @@ func (c *Client) SendMessage(ctx context.Context, userID int, text string) error
 		if len(out) > 0 && out[0].ErrorMessage != "" {
 			msg = out[0].ErrorMessage
 		}
-		return errors.New("dl.spbstu.ru: " + msg)
+		site, _ := c.site()
+		return errors.New(site + ": " + msg)
 	}
 	return nil
 }
 
 type Hit struct {
+	Site       string `json:"site"`
 	Course     string `json:"course"`
 	CourseID   int    `json:"course_id"`
 	Section    string `json:"section"`
@@ -292,6 +294,7 @@ func (c *Client) Search(ctx context.Context, query string, all bool) ([]Hit, err
 		seen = map[[2]int]bool{}
 		wg   sync.WaitGroup
 	)
+	site, _ := c.site()
 	matches := func(s string) bool {
 		s = strings.ToLower(s)
 		for _, w := range words {
@@ -332,7 +335,7 @@ func (c *Client) Search(ctx context.Context, query string, all bool) ([]Hit, err
 						continue
 					}
 					seen[[2]int{co.ID, m.CMID}] = true
-					out = append(out, Hit{Course: co.Name, CourseID: co.ID, Section: s.Name, Name: m.Name, Type: m.Type, CMID: m.CMID, InstanceID: m.InstanceID, URL: m.URL, Match: where})
+					out = append(out, Hit{Site: site, Course: co.Name, CourseID: co.ID, Section: s.Name, Name: m.Name, Type: m.Type, CMID: m.CMID, InstanceID: m.InstanceID, URL: m.URL, Match: where})
 					mu.Unlock()
 				}
 			}

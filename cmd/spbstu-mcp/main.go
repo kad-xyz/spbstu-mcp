@@ -1,4 +1,4 @@
-// Command spbstu-mcp is an MCP server for the SPbPU student services: the dl.spbstu.ru Moodle
+// Command spbstu-mcp is an MCP server for the SPbPU student services: the university Moodle sites
 // and my.spbstu.ru. It signs in with logins kept in the system credential store and acts as
 // one of them at a time, the active account.
 package main
@@ -6,16 +6,20 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/kad-xyz/spbstu-mcp/internal/accounts"
 	"github.com/kad-xyz/spbstu-mcp/internal/answers"
 	"github.com/kad-xyz/spbstu-mcp/internal/keychain"
+	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
 )
 
 var version = "dev"
@@ -26,16 +30,22 @@ func main() {
 	demoMode := flag.Bool("demo", false, "serve made-up data instead of the university services (no account needed)")
 	group := flag.String("group", "", "default group for the schedule tool, e.g. 5130902/30201")
 	downloads := flag.String("downloads", filepath.Join(home, "Downloads", "spbstu"), "where dl_download saves files")
+	sitesFlag := flag.String("moodle-sites", orEnv("SPBSTU_MOODLE_SITES", moodle.DefaultSite),
+		"comma-separated Moodle sites to use, the default one first; known: "+strings.Join(moodle.Sites, ", "))
 	flag.Parse()
+	sites, err := parseSites(*sitesFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	reg := accounts.Default(func() (string, error) {
 		c, err := keychain.Load(*service, "")
 		return c.Account, err
 	})
-	accts := newAccountSet(reg, *service, *demoMode)
+	accts := newAccountSet(reg, *service, *demoMode, sites)
 
 	server := mcp.NewServer(&mcp.Implementation{Name: "spbstu-mcp", Version: version}, &mcp.ServerOptions{
-		Instructions: "SPbPU (Политех) student services of the user. For \"what is due / what is going on\" start with study_overview. dl_* tools read the dl.spbstu.ru Moodle: " +
+		Instructions: "SPbPU (Политех) student services of the user. For \"what is due / what is going on\" start with study_overview. dl_* tools read the university Moodle sites enabled in the server config (" + strings.Join(sites, ", ") + "; the first is the default, site picks another, and ids from one site go with its site): " +
 			"start with dl_courses, then dl_course_contents / dl_assignments / dl_deadlines. Forum tools take the " +
 			"forum's instance_id, not its cmid: dl_search finds a forum by name with its instance_id, cheaper than reading all of dl_course_contents. mail_* tools work with the university " +
 			"mailbox on mail.spbstu.ru; mail_send saves a draft unless send=true, which needs the user's explicit confirmation. " +
@@ -64,6 +74,34 @@ func main() {
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func orEnv(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// parseSites reads the -moodle-sites list: known hosts, in order, without repeats.
+func parseSites(list string) ([]string, error) {
+	var sites []string
+	seen := map[string]bool{}
+	for _, site := range strings.Split(list, ",") {
+		site = strings.ToLower(strings.TrimSpace(site))
+		if site == "" || seen[site] {
+			continue
+		}
+		if !moodle.Known(site) {
+			return nil, fmt.Errorf("unknown Moodle site %q in -moodle-sites; known: %s", site, strings.Join(moodle.Sites, ", "))
+		}
+		seen[site] = true
+		sites = append(sites, site)
+	}
+	if len(sites) == 0 {
+		return nil, errors.New("-moodle-sites lists no site")
+	}
+	return sites, nil
 }
 
 // accountRules keep a classmate's account from being used by mistake.

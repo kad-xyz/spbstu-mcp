@@ -10,6 +10,7 @@ import (
 	"github.com/kad-xyz/spbstu-mcp/internal/accounts"
 	"github.com/kad-xyz/spbstu-mcp/internal/demo"
 	"github.com/kad-xyz/spbstu-mcp/internal/ews"
+	"github.com/kad-xyz/spbstu-mcp/internal/moodle"
 )
 
 // draftMail saves drafts, where demo.Mail refuses every write.
@@ -30,9 +31,9 @@ func connect(t *testing.T) *mcp.ClientSession {
 	if err := reg.Add(classmat); err != nil {
 		t.Fatal(err)
 	}
-	a := newAccountSet(reg, "spbstu-mcp-test", false)
+	a := newAccountSet(reg, "spbstu-mcp-test", false, nil)
 	for _, acc := range []string{own, classmat} {
-		a.sessions[acc] = &session{account: acc, dl: demo.DL{}, oe: demo.OpenEdu{}, mail: draftMail{}, my: demo.My{}}
+		a.sessions[acc] = &session{account: acc, sites: []string{moodle.DefaultSite}, dl: map[string]dlService{moodle.DefaultSite: demo.DL{}}, oe: demo.OpenEdu{}, mail: draftMail{}, my: demo.My{}}
 	}
 	s := mcp.NewServer(&mcp.Implementation{Name: "test"}, nil)
 	s.AddReceivingMiddleware(a.middleware)

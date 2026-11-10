@@ -36,6 +36,8 @@ SPBSTU_LIVE=1 go test ./internal/moodle ./internal/openedu
 - Tool results are compact JSON for a model to read: drop fields nobody needs, turn HTML into text, dates into
   local `YYYY-MM-DD HH:MM`.
 - Comments explain why, not what.
+- SPbPU Moodle installations that share the existing API and OAuth flow belong in the allow-list in
+  `internal/moodle/client.go`; do not duplicate the client or accept arbitrary hosts.
 
 ### Adding a service
 
