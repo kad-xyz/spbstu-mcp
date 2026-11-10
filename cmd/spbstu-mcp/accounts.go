@@ -280,6 +280,9 @@ func (openeduProxy) ForumThread(ctx context.Context, thread string) (*openedu.Th
 func (openeduProxy) ForumReply(ctx context.Context, thread, body string) (*openedu.Comment, error) {
 	return sess(ctx).oe.ForumReply(ctx, thread, body)
 }
+func (openeduProxy) SignInAs(ctx context.Context, email string) (string, error) {
+	return sess(ctx).oe.SignInAs(ctx, email)
+}
 
 type myProxy struct{}
 

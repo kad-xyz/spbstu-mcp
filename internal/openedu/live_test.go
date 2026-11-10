@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/kad-xyz/spbstu-mcp/internal/state"
@@ -38,4 +39,36 @@ func TestLiveExam(t *testing.T) {
 	}
 	b, _ := json.Marshal(e)
 	t.Log(string(b))
+}
+
+// TestLiveSignInAs signs in with an openedu.ru email and password into a fresh session store
+// and lists the current courses of that account. Run with SPBSTU_LIVE=1 and
+// SPBSTU_OPENEDU_EMAIL set to an email whose password is stored under spbstu-openedu;
+// SPBSTU_OPENEDU_COURSE also reads the progress in that course.
+func TestLiveSignInAs(t *testing.T) {
+	email := os.Getenv("SPBSTU_OPENEDU_EMAIL")
+	if os.Getenv("SPBSTU_LIVE") == "" || email == "" {
+		t.Skip("set SPBSTU_LIVE=1 and SPBSTU_OPENEDU_EMAIL to run against openedu.ru")
+	}
+	ctx := context.Background()
+	c := &Client{KeychainService: "spbstu", State: &state.Store{Path: filepath.Join(t.TempDir(), "state.json")}}
+	user, err := c.SignInAs(ctx, email)
+	if err != nil {
+		t.Fatal(err)
+	}
+	courses, err := c.Courses(ctx, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("signed in as %s, %d current courses", user, len(courses))
+	for _, co := range courses {
+		t.Log(co.ID)
+	}
+	if course := os.Getenv("SPBSTU_OPENEDU_COURSE"); course != "" {
+		p, err := c.Progress(ctx, course)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("%s: grade %s, %d units complete, %d to go", course, p.Grade, p.Complete, p.Incomplete)
+	}
 }
