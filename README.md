@@ -168,8 +168,9 @@ password, each with its own courses. The server signs in through «Полите�
 ask *"sign in to openedu.ru as ivanov@example.com"*: `openedu_login` asks for that account's openedu.ru password in a
 system dialog (macOS), keeps it in the credential store under the service `spbstu-openedu`, one item per email, and
 checks it with one sign-in. The choice is remembered for the active university account; `openedu_login` without an
-email goes back to «Политех». A course that answers `User not enrolled` says which openedu.ru account the server is
-signed in to.
+email goes back to «Политех». The password is removed from the credential store when openedu.ru calls it wrong, when
+the account goes back to «Политех» or to another email, and when the university account is removed with
+`account_remove`. A course that answers `User not enrolled` says which openedu.ru account the server is signed in to.
 
 ## Tools
 

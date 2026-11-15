@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -26,7 +25,8 @@ import (
 const (
 	PortalURL = "https://openedu.ru"
 	LMSURL    = "https://courses.openedu.ru"
-	ssoURL    = "https://sso.openedu.ru"
+	ssoHost   = "sso.openedu.ru"
+	ssoURL    = "https://" + ssoHost
 
 	portalLogin = PortalURL + "/auth/login/npoedsso/"
 	lmsLogin    = LMSURL + "/auth/login/keycloak/?auth_entry=login&next=%2F"
@@ -42,18 +42,30 @@ var (
 	brokerRe = regexp.MustCompile(`/realms/openedu/broker/spbstu/login\?[^"\\]+`)
 	// The sign-in page is a Keycloakify theme that renders the form from a kcContext object;
 	// the plain Keycloak theme has the form in the HTML.
-	loginActionRe = regexp.MustCompile(`"loginAction":\s*"([^"]+)"|<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"`)
+	loginActionRe = regexp.MustCompile(`"loginAction":\s*"((?:[^"\\]|\\.)+)"|<form[^>]*id="kc-form-login"[^>]*action="([^"]+)"`)
 	// Other pages, e.g. a required password change, carry a loginAction too.
 	loginPageRe = regexp.MustCompile(`"pageId":\s*"login"|id="kc-form-login"`)
 	kcSummaryRe = regexp.MustCompile(`"summary":\s*"((?:[^"\\]|\\.)*)"`)
 	kcErrorRe   = regexp.MustCompile(`id="input-error[^"]*"[^>]*>\s*([^<]+?)\s*<`)
+	// Keycloakify hands the error of the email and password fields over as functions of
+	// kcContext.messagesPerField: existsError answers true, get returns the text.
+	kcFieldErrorRe = regexp.MustCompile(`fieldName === 'username' \|\| fieldName === 'password'\s*\)\s*\{\s*return true|id="input-error"`)
+	kcFieldTextRe  = regexp.MustCompile(`fieldName === 'username' \|\| fieldName === 'password'\s*\)\s*\{\s*return '((?:[^'\\]|\\.)+)'`)
+	// What Keycloak says about the credentials, and about an account it has blocked for a while.
+	rejectedRe = regexp.MustCompile(`(?i)invalid (username|email|user credentials|password)|(неправильн|неверн)\S* (имя пользователя|логин|e-?mail|адрес|пароль)`)
+	lockedRe   = regexp.MustCompile(`(?i)temporarily|too many|временно|слишком много`)
 )
 
 // loadPassword reads the openedu.ru password; tests replace it.
 var loadPassword = keychain.Load
 
-// ErrRejected is returned when openedu.ru turns down the email or password.
+// ErrRejected is returned when openedu.ru says the email or password is wrong, and only
+// then: the caller drops the stored password on it.
 var ErrRejected = errors.New("openedu.ru rejected the email or password")
+
+// ErrLocked is returned when openedu.ru has blocked the account for a while after frequent
+// sign-ins. The password may well be right, and another attempt prolongs the block.
+var ErrLocked = errors.New("openedu.ru has blocked sign-ins to the account for a while")
 
 // PasswordService is the credential store service that holds openedu.ru passwords next to
 // the university logins of service, one item per openedu.ru email.
@@ -71,6 +83,8 @@ type Client struct {
 	mu     sync.Mutex
 	client *http.Client
 	email  string // the openedu.ru login when State is nil
+	// trying is the login SignInAs is checking; it is stored only once it has signed in.
+	trying *string
 }
 
 func (c *Client) init() {
@@ -81,29 +95,17 @@ func (c *Client) init() {
 
 // login is the openedu.ru email the client signs in with, or "" for «Политех»; c.mu is held.
 func (c *Client) login() string {
-	if c.State == nil {
+	switch {
+	case c.trying != nil:
+		return *c.trying
+	case c.State == nil:
 		return c.email
 	}
 	return c.State.Get(loginKey)
 }
 
-// setLogin switches to another way of signing in, which means another openedu.ru account,
-// so its sessions replace the current ones; c.mu is held.
-func (c *Client) setLogin(login, cookies string) error {
-	if c.State == nil {
-		c.email = login
-	} else {
-		if err := c.State.Set(loginKey, login); err != nil {
-			return err
-		}
-		if err := c.State.Set(cookiesKey, cookies); err != nil {
-			return err
-		}
-	}
-	c.init()
-	c.client.Jar = state.NewJar(c.State, cookiesKey)
-	return nil
-}
+// Login is the openedu.ru email an account's session store signs in with, or "" for «Политех».
+func Login(s *state.Store) string { return s.Get(loginKey) }
 
 // SignInAs makes the client sign in with an openedu.ru email and its password from the
 // credential store, or through «Политех» when email is "". It signs in once to check, or
@@ -113,32 +115,65 @@ func (c *Client) SignInAs(ctx context.Context, email string) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.init()
-	prevLogin, prevCookies := c.login(), ""
-	if c.State != nil {
-		prevCookies = c.State.Get(cookiesKey)
+	if email == c.login() {
+		return c.username(ctx)
 	}
-	if email != prevLogin {
-		if err := c.setLogin(email, ""); err != nil {
-			return "", err
-		}
+	// Another way of signing in is another openedu.ru account. It is tried on a jar of its
+	// own and stored only once it has signed in, so a failed attempt has nothing to undo.
+	prev, trial := c.client.Jar, state.NewJar(nil, cookiesKey)
+	c.client.Jar, c.trying = trial, &email
+	user, err := c.username(ctx)
+	c.trying = nil
+	if err == nil {
+		err = c.adopt(email, trial)
 	}
+	if err != nil {
+		c.client.Jar = prev
+		return "", err
+	}
+	return user, nil
+}
+
+// adopt makes login and the sessions of its sign-in the client's own; c.mu is held. The
+// login and the cookies reach the store in one write: one without the other would be a
+// session of the wrong account.
+func (c *Client) adopt(login string, jar *state.Jar) error {
+	if c.State == nil {
+		c.email = login
+		return nil
+	}
+	if err := c.State.SetAll(map[string]string{loginKey: login, cookiesKey: jar.Snapshot()}); err != nil {
+		return err
+	}
+	c.client.Jar = state.NewJar(c.State, cookiesKey)
+	return nil
+}
+
+// username asks the LMS who is signed in, signing in first when needed; c.mu is held.
+func (c *Client) username(ctx context.Context) (string, error) {
 	var me struct {
 		Username string `json:"username"`
 	}
 	body, err := c.lms(ctx, "/api/user/v1/me")
-	if err == nil {
-		err = json.Unmarshal(body, &me)
-	}
-	if err != nil && email != prevLogin {
-		if rerr := c.setLogin(prevLogin, prevCookies); rerr != nil {
-			return "", errors.Join(err, rerr)
-		}
-	}
 	if err != nil {
+		return "", err
+	}
+	if err := json.Unmarshal(body, &me); err != nil {
 		return "", err
 	}
 	return me.Username, nil
 }
+
+// lmsError is the error of an LMS reply; c.mu is held. "User not enrolled" for a course the
+// user sees on openedu.ru may mean the other openedu.ru account, so it says which one this is.
+func (c *Client) lmsError(path string, status int, body []byte) error {
+	if notEnrolled(body) {
+		return fmt.Errorf("courses.openedu.ru%s: HTTP %d: %.200s. %s", path, status, body, accountHint(c.login()))
+	}
+	return fmt.Errorf("courses.openedu.ru%s: HTTP %d: %.200s", path, status, body)
+}
+
+func notEnrolled(body []byte) bool { return bytes.Contains(body, []byte("not enrolled")) }
 
 // accountHint explains "not enrolled" for a course the user sees on openedu.ru: the server
 // may be signed in to the other openedu.ru account.
@@ -207,6 +242,10 @@ func (c *Client) lms(ctx context.Context, path string) ([]byte, error) {
 		}
 		unauthorized := status == http.StatusUnauthorized || status == http.StatusForbidden || left
 		switch {
+		case !left && notEnrolled(body):
+			// Open edX says so with 401 or 403, which here is not a lapsed session: signing
+			// in again would cost a sign-in on every course of the other account.
+			return nil, c.lmsError(path, status, body)
 		case unauthorized && attempt == 0:
 			c.refreshJWT(ctx)
 		case unauthorized && attempt == 1:
@@ -215,10 +254,8 @@ func (c *Client) lms(ctx context.Context, path string) ([]byte, error) {
 			signInErr = c.signIn(ctx, lmsLogin, "courses.openedu.ru")
 		case signInErr != nil:
 			return nil, signInErr
-		case bytes.Contains(body, []byte("not enrolled")):
-			return nil, fmt.Errorf("courses.openedu.ru%s: HTTP %d: %.200s. %s", path, status, body, accountHint(c.login()))
 		default:
-			return nil, fmt.Errorf("courses.openedu.ru%s: HTTP %d: %.200s", path, status, body)
+			return nil, c.lmsError(path, status, body)
 		}
 	}
 }
@@ -295,9 +332,9 @@ func (c *Client) signIn(ctx context.Context, start, host string) error {
 
 // passwordSignIn fills in the email and password form of the openedu.ru SSO page.
 func (c *Client) passwordSignIn(ctx context.Context, page []byte, at *url.URL, host, email string) error {
-	action := loginAction(page)
-	if action == "" {
-		return fmt.Errorf("%s sign-in: email and password form not found at %s%s", host, at.Host, at.Path)
+	action, err := loginAction(page, at)
+	if err != nil {
+		return fmt.Errorf("%s sign-in: %w", host, err)
 	}
 	creds, err := loadPassword(PasswordService(c.KeychainService), email)
 	if err != nil {
@@ -329,35 +366,77 @@ func (c *Client) passwordSignIn(ctx context.Context, page []byte, at *url.URL, h
 		return nil
 	}
 	if loginPageRe.Match(body) {
-		// The form came back: Keycloak shows it again with the reason.
-		if msg := kcMessage(body); msg != "" {
-			return fmt.Errorf("%w: %s", ErrRejected, msg)
-		}
-		return ErrRejected
+		return formError(body)
 	}
 	return errors.New(host + " sign-in as " + email + " stopped at " + end.Host + end.Path + " (finish it once in a browser)")
 }
 
-// loginAction finds where the SSO page posts its email and password form.
-func loginAction(page []byte) string {
+// loginAction finds where the SSO page at the URL at posts its email and password form. The
+// password goes only to the openedu.ru SSO over TLS: an address read wrong, or one that
+// leads elsewhere, is an error.
+func loginAction(page []byte, at *url.URL) (string, error) {
 	m := loginActionRe.FindSubmatch(page)
-	switch {
-	case m == nil:
-		return ""
-	case m[1] != nil:
-		return strings.ReplaceAll(string(m[1]), `\/`, "/")
-	default:
-		return html.UnescapeString(string(m[2]))
+	if m == nil {
+		return "", fmt.Errorf("email and password form not found at %s%s", at.Host, at.Path)
 	}
+	action, ok := html.UnescapeString(string(m[2])), true
+	if m[1] != nil {
+		action, ok = jsString(string(m[1]))
+	}
+	u, err := url.Parse(action)
+	if !ok || err != nil {
+		return "", fmt.Errorf("the address of the email and password form at %s%s is not readable", at.Host, at.Path)
+	}
+	u = at.ResolveReference(u)
+	if u.Scheme != "https" || u.Host != ssoHost {
+		return "", fmt.Errorf("the email and password form posts to %s://%s, not to https://%s: the password was not sent", u.Scheme, u.Host, ssoHost)
+	}
+	return u.String(), nil
 }
 
-// kcMessage is the error Keycloak shows above its form, e.g. «Неправильное имя пользователя
+// jsString decodes the inside of a double-quoted JavaScript string as Keycloak writes it,
+// with "\/" for a slash and \u escapes.
+func jsString(s string) (string, bool) {
+	var out string
+	err := json.Unmarshal([]byte(`"`+s+`"`), &out)
+	return out, err == nil
+}
+
+// formError tells why Keycloak showed its form again. Only an error on the email and
+// password fields is a rejection. The form also comes back for an account blocked after
+// frequent sign-ins or for a stale page, and neither says anything about the password.
+func formError(page []byte) error {
+	msg := kcMessage(page)
+	switch {
+	case lockedRe.MatchString(msg):
+		return fmt.Errorf("%w: %s", ErrLocked, msg)
+	case kcFieldErrorRe.Match(page) || rejectedRe.MatchString(msg):
+		if msg == "" {
+			return ErrRejected
+		}
+		return fmt.Errorf("%w: %s", ErrRejected, msg)
+	case msg != "":
+		return errors.New("openedu.ru showed the sign-in form again: " + msg)
+	}
+	return errors.New("openedu.ru showed the sign-in form again without saying why")
+}
+
+// kcMessage is the error Keycloak shows on its form, e.g. «Неправильное имя пользователя
 // или пароль».
 func kcMessage(page []byte) string {
 	if m := kcSummaryRe.FindSubmatch(page); m != nil {
-		s := strings.ReplaceAll(string(m[1]), `\/`, "/")
-		if u, err := strconv.Unquote(`"` + s + `"`); err == nil {
-			s = u
+		s, ok := jsString(string(m[1]))
+		if !ok {
+			s = string(m[1])
+		}
+		return strings.TrimSpace(html.UnescapeString(s))
+	}
+	if m := kcFieldTextRe.FindSubmatch(page); m != nil {
+		// A single-quoted string: its quotes are escaped the other way round.
+		raw := strings.ReplaceAll(strings.ReplaceAll(string(m[1]), `\'`, `'`), `"`, `\"`)
+		s, ok := jsString(raw)
+		if !ok {
+			s = string(m[1])
 		}
 		return strings.TrimSpace(html.UnescapeString(s))
 	}

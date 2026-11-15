@@ -252,7 +252,7 @@ func (c *Client) Outline(ctx context.Context, courseID string) ([]Chapter, error
 func (c *Client) Enroll(ctx context.Context, courseID string) (*Course, error) {
 	body := map[string]any{"course_details": map[string]string{"course_id": courseID}}
 	if _, err := c.jsonLMS(ctx, "/api/enrollment/v1/enrollment", body); err != nil {
-		return nil, fmt.Errorf("not enrolled in %s: %w", courseID, err)
+		return nil, fmt.Errorf("enrolling in %s failed: %w", courseID, err)
 	}
 	courses, err := c.Courses(ctx, false)
 	if err != nil {

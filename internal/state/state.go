@@ -35,16 +35,24 @@ func (s *Store) Get(key string) string {
 
 // Set stores value under key; an empty value removes it.
 func (s *Store) Set(key, value string) error {
+	return s.SetAll(map[string]string{key: value})
+}
+
+// SetAll stores several values in one write, for values that are wrong one without the
+// other: the file gets all of them or, when the write fails, none.
+func (s *Store) SetAll(values map[string]string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m, err := s.load()
 	if err != nil {
 		return err
 	}
-	if value == "" {
-		delete(m, key)
-	} else {
-		m[key] = value
+	for key, value := range values {
+		if value == "" {
+			delete(m, key)
+		} else {
+			m[key] = value
+		}
 	}
 	if err := os.MkdirAll(filepath.Dir(s.Path), 0o700); err != nil {
 		return err
