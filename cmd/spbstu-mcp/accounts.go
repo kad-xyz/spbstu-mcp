@@ -351,6 +351,9 @@ func (openeduProxy) ForumThread(ctx context.Context, thread string) (*openedu.Th
 func (openeduProxy) ForumReply(ctx context.Context, thread, body string) (*openedu.Comment, error) {
 	return sess(ctx).oe.ForumReply(ctx, thread, body)
 }
+func (openeduProxy) SignInAs(ctx context.Context, email string) (string, error) {
+	return sess(ctx).oe.SignInAs(ctx, email)
+}
 
 type myProxy struct{}
 
@@ -479,7 +482,7 @@ func registerAccounts(s *mcp.Server, a *accountSet) {
 		})
 
 	mcp.AddTool(s, &mcp.Tool{Name: "account_remove", Annotations: &mcp.ToolAnnotations{DestructiveHint: ptr(true)},
-		Description: "Remove an account that is not active: its password from the keychain and its saved sessions. Only after the user's confirmation."},
+		Description: "Remove an account that is not active: its password and its openedu.ru password from the keychain, and its saved sessions. Only after the user's confirmation."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in accountIn) (*mcp.CallToolResult, any, error) {
 			if a.demo {
 				return nil, nil, errDemo
@@ -488,6 +491,11 @@ func registerAccounts(s *mcp.Server, a *accountSet) {
 			if account == "" {
 				return nil, nil, errors.New("give account")
 			}
+			// Read before the sessions go: the email whose openedu.ru password the account holds.
+			oeLogin := ""
+			if a.reg.Has(account) {
+				oeLogin = openedu.Login(a.reg.Store(account))
+			}
 			if err := a.reg.Remove(account); err != nil {
 				return nil, nil, err
 			}
@@ -495,6 +503,11 @@ func registerAccounts(s *mcp.Server, a *accountSet) {
 			msg := "Removed " + account + "."
 			if err := keychain.Delete(a.service, account); err != nil {
 				msg += " Its password is still stored: " + err.Error()
+			}
+			if oeLogin != "" {
+				if err := oePasswords.remove(openedu.PasswordService(a.service), oeLogin); err != nil {
+					msg += " Its openedu.ru password is still stored: " + err.Error()
+				}
 			}
 			return text(msg)
 		})

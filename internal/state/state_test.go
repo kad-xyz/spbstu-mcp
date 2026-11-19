@@ -31,6 +31,33 @@ func TestStoreFileMode(t *testing.T) {
 	}
 }
 
+func TestSetAll(t *testing.T) {
+	s := &Store{Path: filepath.Join(t.TempDir(), "state.json")}
+	if err := s.SetAll(map[string]string{"a": "1", "b": "2"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetAll(map[string]string{"a": "", "c": "3"}); err != nil {
+		t.Fatal(err)
+	}
+	if s.Get("a") != "" || s.Get("b") != "2" || s.Get("c") != "3" {
+		t.Errorf("a=%q b=%q c=%q", s.Get("a"), s.Get("b"), s.Get("c"))
+	}
+}
+
+// A jar without a store keeps its cookies in a form a store can take later.
+func TestJarSnapshot(t *testing.T) {
+	u, _ := url.Parse("https://courses.example.ru/login")
+	j := NewJar(nil, "cookies")
+	j.SetCookies(u, []*http.Cookie{{Name: "sessionid", Value: "v", Path: "/"}})
+	s := &Store{Path: filepath.Join(t.TempDir(), "state.json")}
+	if err := s.Set("cookies", j.Snapshot()); err != nil {
+		t.Fatal(err)
+	}
+	if ck := NewJar(s, "cookies").Cookies(u); len(ck) != 1 || ck[0].Value != "v" {
+		t.Errorf("cookies read back: %v", ck)
+	}
+}
+
 // A cookie set for a parent domain must come back for every host of that domain, and only once.
 func TestJarKeepsCookieDomains(t *testing.T) {
 	s := &Store{Path: filepath.Join(t.TempDir(), "state.json")}

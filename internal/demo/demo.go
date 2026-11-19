@@ -321,6 +321,8 @@ func (OpenEdu) ForumReply(_ context.Context, _ string, body string) (*openedu.Co
 	return &openedu.Comment{ID: "6a8000000000000000000002", Author: "student", Created: stamp(at(0, 12, 0)), Body: body}, nil
 }
 
+func (OpenEdu) SignInAs(context.Context, string) (string, error) { return "", errReadOnly }
+
 func (OpenEdu) FinishExam(context.Context, string, string) (*openedu.Exam, error) {
 	e := demoExam("submitted")
 	e.AttemptID = 1

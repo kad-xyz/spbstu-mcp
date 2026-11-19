@@ -59,7 +59,15 @@ func Delete(service, account string) error { return remove(service, account) }
 
 // AskPassword asks the user for the password of account in a system dialog, so that it
 // never passes through the chat.
-func AskPassword(account string) (string, error) { return askPassword(account) }
+func AskPassword(account string) (string, error) {
+	return askPassword("Пароль учётной записи " + account + " (вставьте из приложения «Пароли»):")
+}
+
+// AskPasswordFor is AskPassword for an account of another site: the dialog names the site,
+// so that the university password is not typed there by habit.
+func AskPasswordFor(site, account string) (string, error) {
+	return askPassword("Пароль от " + site + " для " + account + ", не пароль Политеха (вставьте из приложения «Пароли»):")
+}
 
 // StoreCommand is the command that stores the password of account by hand, for systems
 // without Save.
