@@ -28,7 +28,7 @@ func main() {
 	service := flag.String("keychain-service", "spbstu", "generic password item holding the SPbPU login")
 	home, _ := os.UserHomeDir()
 	demoMode := flag.Bool("demo", false, "serve made-up data instead of the university services (no account needed)")
-	group := flag.String("group", "", "default group for the schedule tool, e.g. 5130902/30201")
+	group := flag.String("group", "", "group for the schedule tool when the record book of the account gives none, e.g. 5130902/30201")
 	downloads := flag.String("downloads", filepath.Join(home, "Downloads", "spbstu"), "where dl_download saves files")
 	sitesFlag := flag.String("moodle-sites", orEnv("SPBSTU_MOODLE_SITES", moodle.DefaultSite),
 		"comma-separated Moodle sites to use, the default one first; known: "+strings.Join(moodle.Sites, ", "))
@@ -64,7 +64,7 @@ func main() {
 	registerMail(server, mailSvc, *downloads)
 	registerOpenEdu(server, oeSvc)
 	registerOverview(server, dlSvc, oeSvc, mailSvc)
-	registerSchedule(server, *group)
+	registerSchedule(server, mySvc, *group)
 	registerAnswers(server, answers.Default())
 	registerMy(server, mySvc)
 	registerDLMore(server, dlSvc)

@@ -4,7 +4,9 @@ package ruz
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -45,20 +47,57 @@ type Week struct {
 
 var weekdays = [...]string{"", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"}
 
+// attempts and retryDelay: RUZ often answers «Ошибка получения данных … с кэша» for a while; a retry may get the week.
+var (
+	attempts   = 4
+	retryDelay = 2 * time.Second
+)
+
 func get(ctx context.Context, path string, out any) error {
+	var err error
+	for i := 0; i < attempts; i++ {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(retryDelay):
+			}
+		}
+		var retry bool
+		if retry, err = getOnce(ctx, path, out); !retry {
+			return err
+		}
+	}
+	return err
+}
+
+// getOnce makes one request; retry says the answer was RUZ's own error, worth asking again.
+func getOnce(ctx context.Context, path string, out any) (retry bool, err error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, BaseURL+path, nil)
 	if err != nil {
-		return err
+		return false, err
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("ruz.spbstu.ru: HTTP %d", resp.StatusCode)
+		return resp.StatusCode >= 500, fmt.Errorf("ruz.spbstu.ru: HTTP %d", resp.StatusCode)
 	}
-	return json.NewDecoder(resp.Body).Decode(out)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+	// RUZ reports its failures with HTTP 200 and {"error": true, "text": "..."}.
+	var e struct {
+		Error bool   `json:"error"`
+		Text  string `json:"text"`
+	}
+	if json.Unmarshal(body, &e) == nil && e.Error {
+		return true, fmt.Errorf("ruz.spbstu.ru did not give the timetable: %s", e.Text)
+	}
+	return false, json.Unmarshal(body, out)
 }
 
 // SearchGroups finds groups by (part of) their number, e.g. "5130902/30201".
@@ -112,6 +151,12 @@ func TeacherWeek(ctx context.Context, teacherID int, day time.Time) (*Week, erro
 	return week(ctx, "/teachers/"+strconv.Itoa(teacherID)+"/scheduler", day, true)
 }
 
+// RoomWeek is the timetable of a room for the week containing day, with the groups of every lesson.
+// The remote "room" (building 33 "DL", room 967 "Дистанционно") holds the online lessons of the whole university.
+func RoomWeek(ctx context.Context, buildingID, roomID int, day time.Time) (*Week, error) {
+	return week(ctx, "/buildings/"+strconv.Itoa(buildingID)+"/rooms/"+strconv.Itoa(roomID)+"/scheduler", day, true)
+}
+
 func week(ctx context.Context, path string, day time.Time, withGroups bool) (*Week, error) {
 	var raw struct {
 		Week struct {
@@ -125,6 +170,12 @@ func week(ctx context.Context, path string, day time.Time, withGroups bool) (*We
 		Teacher *struct {
 			FullName string `json:"full_name"`
 		} `json:"teacher"`
+		Room *struct {
+			Name     string `json:"name"`
+			Building struct {
+				Name string `json:"name"`
+			} `json:"building"`
+		} `json:"room"`
 		Days []struct {
 			Date    string `json:"date"`
 			Weekday int    `json:"weekday"`
@@ -161,6 +212,8 @@ func week(ctx context.Context, path string, day time.Time, withGroups bool) (*We
 		w.Of = raw.Group.Name
 	} else if raw.Teacher != nil {
 		w.Of = raw.Teacher.FullName
+	} else if raw.Room != nil {
+		w.Of = raw.Room.Building.Name + ", ауд. " + raw.Room.Name
 	}
 	for _, d := range raw.Days {
 		for _, l := range d.Lessons {
@@ -188,4 +241,94 @@ func week(ctx context.Context, path string, day time.Time, withGroups bool) (*We
 		}
 	}
 	return w, nil
+}
+
+// Filter keeps the lessons that have every word of q (case-insensitive) in their subject, type, teachers,
+// groups, place or note, e.g. "комиссия з5130902/30201".
+func (w *Week) Filter(q string) {
+	words := strings.Fields(strings.ToLower(q))
+	if len(words) == 0 {
+		return
+	}
+	kept := []Lesson{}
+	for _, l := range w.Lessons {
+		text := strings.ToLower(strings.Join(append(append([]string{l.Subject, l.Type, l.Place, l.Note}, l.Teachers...), l.Groups...), " "))
+		all := true
+		for _, word := range words {
+			if !strings.Contains(text, word) {
+				all = false
+				break
+			}
+		}
+		if all {
+			kept = append(kept, l)
+		}
+	}
+	w.Lessons = kept
+}
+
+// Kind of timetable a ruz.spbstu.ru page shows.
+const (
+	KindGroup   = "group"
+	KindTeacher = "teacher"
+	KindRoom    = "room"
+)
+
+// Target is the timetable a ruz.spbstu.ru page link points to.
+type Target struct {
+	Kind       string
+	ID         int    // group, teacher or room id
+	BuildingID int    // for a room
+	Date       string // the page's ?date=, YYYY-MM-DD, if any
+}
+
+// ParseURL reads a ruz.spbstu.ru page link: /faculty/<f>/groups/<id>, /teachers/<id> or /places/<building>/<room>.
+func ParseURL(link string) (Target, error) {
+	link = strings.TrimSpace(link)
+	if !strings.Contains(link, "://") {
+		link = "https://" + link
+	}
+	u, err := url.Parse(link)
+	if err != nil || !strings.EqualFold(u.Hostname(), "ruz.spbstu.ru") {
+		return Target{}, errors.New("not a ruz.spbstu.ru link")
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	num := func(i int) int {
+		if i >= len(parts) {
+			return 0
+		}
+		n, _ := strconv.Atoi(parts[i])
+		return n
+	}
+	var t Target
+	switch {
+	case len(parts) >= 4 && parts[0] == "faculty" && parts[2] == "groups":
+		t = Target{Kind: KindGroup, ID: num(3)}
+	case len(parts) >= 2 && parts[0] == "teachers":
+		t = Target{Kind: KindTeacher, ID: num(1)}
+	case len(parts) >= 3 && parts[0] == "places":
+		t = Target{Kind: KindRoom, BuildingID: num(1), ID: num(2)}
+	}
+	if t.Kind == "" || t.ID == 0 || (t.Kind == KindRoom && t.BuildingID == 0) {
+		return Target{}, fmt.Errorf("unknown ruz.spbstu.ru page %q: expected a group, teacher or room (/places/…) page", u.Path)
+	}
+	if d := u.Query().Get("date"); d != "" {
+		if day, err := time.Parse("2006-1-2", d); err == nil {
+			t.Date = day.Format("2006-01-02")
+		}
+	}
+	return t, nil
+}
+
+// TargetWeek is the timetable that a parsed page link points to, for the week containing day.
+func TargetWeek(ctx context.Context, t Target, day time.Time) (*Week, error) {
+	switch t.Kind {
+	case KindGroup:
+		return GroupWeek(ctx, t.ID, day)
+	case KindTeacher:
+		return TeacherWeek(ctx, t.ID, day)
+	case KindRoom:
+		return RoomWeek(ctx, t.BuildingID, t.ID, day)
+	}
+	return nil, fmt.Errorf("unknown timetable kind %q", t.Kind)
 }

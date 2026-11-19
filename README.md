@@ -255,7 +255,7 @@ first `dl_*` call naming it.
 
 | Tool | Description |
 |---|---|
-| `schedule` | Week of a group or a teacher: time, type, teachers, room, webinar and dl links. Ambiguous names return the candidates. |
+| `schedule` | Week (or up to 8 weeks) of a group, a teacher or a room, also by a ruz.spbstu.ru link such as the remote room `/places/33/967`: time, type, teachers, groups, room, webinar and dl links; `query` keeps matching lessons only. Without a group it is the group of the active account's record book. Ambiguous names return the candidates; RUZ's own errors are retried, then reported. |
 
 </details>
 
@@ -333,7 +333,7 @@ flowchart LR
 |---|---|---|
 | `-keychain-service` | `spbstu` | Name of the credential store service with the university logins, one item per account. |
 | `-downloads` | `~/Downloads/spbstu` | Where downloaded files and attachments are saved. |
-| `-group` | | Default group for `schedule`, e.g. `5130902/30201`. |
+| `-group` | | Group for `schedule` when the account's record book gives none, e.g. `5130902/30201`. |
 | `-moodle-sites` | `dl.spbstu.ru` | Comma-separated Moodle sites to use, the default one first: `dl.spbstu.ru`, `dl-hum.spbstu.ru`, `lms.spbstu.ru`. Also read from `SPBSTU_MOODLE_SITES`. |
 | `-demo` | `false` | Serve made-up data instead of the university services; no credentials needed. |
 
