@@ -129,6 +129,21 @@ func (c *Client) SaveSubmission(ctx context.Context, assignID int, paths []strin
 	if !submit {
 		return nil
 	}
+	// An assignment without drafts takes the work as submitted on save and then
+	// refuses submit_for_grading with "Could not submit assignment for grading".
+	var st struct {
+		LastAttempt struct {
+			Submission struct {
+				Status string `json:"status"`
+			} `json:"submission"`
+		} `json:"lastattempt"`
+	}
+	if err := c.Call(ctx, "mod_assign_get_submission_status", url.Values{"assignid": {strconv.Itoa(assignID)}}, &st); err != nil {
+		return err
+	}
+	if st.LastAttempt.Submission.Status == "submitted" {
+		return nil
+	}
 	params = url.Values{"assignmentid": {strconv.Itoa(assignID)}, "acceptsubmissionstatement": {"1"}}
 	if err := c.Call(ctx, "mod_assign_submit_for_grading", params, &w); err != nil {
 		return err
