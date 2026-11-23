@@ -65,15 +65,15 @@ func remove(service, account string) error {
 }
 
 const passwordDialog = `on run argv
-	display dialog "Пароль учётной записи " & item 1 of argv & " (вставьте из приложения «Пароли»):" default answer "" with hidden answer with title "spbstu-mcp" buttons {"Отмена", "Сохранить"} default button "Сохранить" cancel button "Отмена" with icon note
+	display dialog (item 1 of argv) default answer "" with hidden answer with title "spbstu-mcp" buttons {"Отмена", "Сохранить"} default button "Сохранить" cancel button "Отмена" with icon note
 	return text returned of result
 end run`
 
 // askPassword shows a dialog with a hidden field; the password goes from it straight to the
 // caller, never to the chat.
-func askPassword(account string) (string, error) {
+func askPassword(prompt string) (string, error) {
 	var out, stderr bytes.Buffer
-	cmd := exec.Command("/usr/bin/osascript", "-e", passwordDialog, account)
+	cmd := exec.Command("/usr/bin/osascript", "-e", passwordDialog, prompt)
 	cmd.Stdout, cmd.Stderr = &out, &stderr
 	if err := cmd.Run(); err != nil {
 		if strings.Contains(stderr.String(), "-128") {

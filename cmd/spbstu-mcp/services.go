@@ -63,6 +63,7 @@ type openeduService interface {
 	Search(ctx context.Context, query string) ([]openedu.CatalogCourse, error)
 	ForumThread(ctx context.Context, thread string) (*openedu.Thread, error)
 	ForumReply(ctx context.Context, thread, body string) (*openedu.Comment, error)
+	SignInAs(ctx context.Context, email string) (string, error)
 }
 
 type myService interface {

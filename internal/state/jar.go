@@ -61,9 +61,6 @@ func id(u *url.URL, c *http.Cookie) string {
 // SetCookies stores the cookies and persists them.
 func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 	j.Jar.SetCookies(u, cookies)
-	if j.store == nil {
-		return
-	}
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	origin := (&url.URL{Scheme: u.Scheme, Host: u.Host, Path: "/"}).String()
@@ -80,10 +77,25 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
 		cc.Raw, cc.Unparsed = "", nil
 		j.records[id(u, c)] = record{URL: origin, Cookie: &cc}
 	}
+	if j.store != nil {
+		_ = j.store.Set(j.key, j.encode())
+	}
+}
+
+// Snapshot is the jar's cookies as a store keeps them, for a jar without a store whose
+// cookies are stored later: NewJar reads them back.
+func (j *Jar) Snapshot() string {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	return j.encode()
+}
+
+// encode lists the recorded cookies; j.mu is held.
+func (j *Jar) encode() string {
 	list := make([]record, 0, len(j.records))
 	for _, r := range j.records {
 		list = append(list, r)
 	}
 	b, _ := json.Marshal(list)
-	_ = j.store.Set(j.key, string(b))
+	return string(b)
 }

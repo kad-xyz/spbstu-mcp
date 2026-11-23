@@ -538,7 +538,7 @@ func (c *Client) sendLMS(ctx context.Context, method, path, contentType, body st
 	}
 	// The forum answers a created comment with 201.
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("courses.openedu.ru%s: HTTP %d: %.200s", path, resp.StatusCode, buf.Bytes())
+		return nil, c.lmsError(path, resp.StatusCode, buf.Bytes())
 	}
 	return buf.Bytes(), nil
 }
