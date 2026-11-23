@@ -15,7 +15,7 @@ type submitIn struct {
 	AssignID int      `json:"assign_id" jsonschema:"assign_id from dl_assignments"`
 	Files    []string `json:"files,omitempty" jsonschema:"absolute paths of local files; they REPLACE every file already in the submission"`
 	Text     string   `json:"text,omitempty" jsonschema:"online text answer, for assignments that take one"`
-	Submit   bool     `json:"submit_for_grading,omitempty" jsonschema:"also press 'submit for grading' (the submission can no longer be edited); default leaves it as a draft"`
+	Submit   bool     `json:"submit_for_grading,omitempty" jsonschema:"also press 'submit for grading' (the submission can no longer be edited); default leaves it as a draft. An assignment without drafts takes the work as submitted on save, and this then succeeds without the extra step"`
 }
 
 type discussionNewIn struct {
